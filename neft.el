@@ -315,7 +315,8 @@
     (if snippets
         (dolist (snippet snippets)
           (neft--insert-snippet path snippet))
-      (insert "\n"))))
+      nil)
+    (insert "\n")))
 
 (defun neft--insert-snippet (path snippet)
   (let* ((line (alist-get 'line snippet))
@@ -331,8 +332,7 @@
              (beg (+ prefix-width match-start))
              (end (+ prefix-width match-end)))
         (when (and (<= start beg) (<= end (point)))
-          (add-face-text-property beg end 'neft-match-face)))))
-  (insert "\n"))
+          (add-face-text-property beg end 'neft-match-face))))))
 
 (defun neft--render-error (event output-buffer)
   (let ((message (if (buffer-live-p output-buffer)

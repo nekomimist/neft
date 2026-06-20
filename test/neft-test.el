@@ -47,6 +47,55 @@
       (should (or (eq face 'neft-match-face)
                   (memq 'neft-match-face face))))))
 
+(ert-deftest neft-render-results-keeps-files-spaced-not-snippets ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "needle")
+    (neft--render-results
+     '((query . "needle")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 2)
+                  (snippets . (((line . 1)
+                                (text . "first needle")
+                                (matches . (((start . 6) (end . 12)))))
+                               ((line . 2)
+                                (text . "second needle")
+                                (matches . (((start . 7) (end . 13))))))))
+                 ((path . "/tmp/b.org")
+                  (title . "beta")
+                  (match_count . 1)
+                  (snippets . (((line . 3)
+                                (text . "third needle")
+                                (matches . (((start . 6) (end . 12))))))))))))
+    (should (string-match-p
+             "first needle\n    2: second needle\n\nbeta"
+             (buffer-string)))
+    (should-not (string-match-p
+                 "first needle\n\n    2: second needle"
+                 (buffer-string)))))
+
+(ert-deftest neft-render-results-keeps-empty-query-files-single-spaced ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 0)
+                  (snippets . nil))
+                 ((path . "/tmp/b.org")
+                  (title . "beta")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (should (string-match-p
+             "alpha\n/tmp/a.org\n\nbeta"
+             (buffer-string)))
+    (should-not (string-match-p
+                 "alpha\n/tmp/a.org\n\n\nbeta"
+                 (buffer-string)))))
+
 (ert-deftest neft-handle-output-keeps-results-in-neft-buffer ()
   (let ((output (generate-new-buffer " *neft-test-output*")))
     (unwind-protect
