@@ -209,32 +209,35 @@
   (when (process-live-p neft--process)
     (delete-process neft--process))
   (let* ((generation neft--generation)
-         (output-buffer (generate-new-buffer " *neft-output*"))
          (args (neft--process-args neft--query)))
     (setq neft--process
           (make-process
            :name "neft"
-           :buffer output-buffer
+           :buffer nil
            :command (cons neft-program args)
            :noquery t
+           :filter #'neft--process-filter
            :sentinel #'neft--process-sentinel))
     (process-put neft--process 'neft-buffer (current-buffer))
-    (process-put neft--process 'neft-generation generation)))
+    (process-put neft--process 'neft-generation generation)
+    (process-put neft--process 'neft-output "")))
+
+(defun neft--process-filter (process string)
+  (process-put process 'neft-output
+               (concat (process-get process 'neft-output) string)))
 
 (defun neft--process-sentinel (process event)
   (when (memq (process-status process) '(exit signal))
     (let ((buffer (process-get process 'neft-buffer))
-          (out (process-buffer process))
+          (output (process-get process 'neft-output))
           (generation (process-get process 'neft-generation))
           (status (process-exit-status process)))
       (when (buffer-live-p buffer)
         (with-current-buffer buffer
           (when (= generation neft--generation)
             (if (= status 0)
-                (neft--handle-output out)
-              (neft--render-error event out))))))
-    (when (buffer-live-p (process-buffer process))
-      (kill-buffer (process-buffer process)))))
+                (neft--handle-output output)
+              (neft--render-error event output))))))))
 
 (defun neft--process-args (query)
   (append
@@ -248,13 +251,12 @@
    (cl-mapcan (lambda (dir) (list "--root" (expand-file-name dir)))
               neft-directories)))
 
-(defun neft--handle-output (output-buffer)
+(defun neft--handle-output (output)
   (let ((result
          (let ((json-object-type 'alist)
                (json-array-type 'list)
                (json-key-type 'symbol))
-           (with-current-buffer output-buffer
-             (json-read-from-string (buffer-string))))))
+           (json-read-from-string output))))
     (setq neft--results result)
     (neft--render-results result)))
 
@@ -335,11 +337,8 @@
         (when (and (<= start beg) (<= end (point)))
           (add-face-text-property beg end 'neft-match-face))))))
 
-(defun neft--render-error (event output-buffer)
-  (let ((message (if (buffer-live-p output-buffer)
-                     (with-current-buffer output-buffer
-                       (string-trim (buffer-string)))
-                   "")))
+(defun neft--render-error (event output)
+  (let ((message (string-trim (or output ""))))
     (let ((inhibit-read-only t))
       (neft--render-empty)
       (insert (format "Search failed: %s\n%s\n" (string-trim event) message)))))

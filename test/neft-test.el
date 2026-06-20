@@ -97,20 +97,31 @@
                  (buffer-string)))))
 
 (ert-deftest neft-handle-output-keeps-results-in-neft-buffer ()
-  (let ((output (generate-new-buffer " *neft-test-output*")))
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--handle-output
+     "{\"query\":\"\",\"files\":[{\"path\":\"/tmp/a.org\",\"title\":\"alpha\",\"modified\":\"2026-01-01T00:00:00Z\",\"match_count\":0,\"snippets\":null}]}")
+    (should neft--results)
+    (goto-char (point-min))
+    (should (search-forward "alpha" nil t))
+    (should-not (search-forward "No matches" nil t))))
+
+(ert-deftest neft-process-filter-keeps-output-out-of-neft-buffer ()
+  (let ((process (start-process "neft-test-sleep" nil "sleep" "5")))
     (unwind-protect
         (with-temp-buffer
           (neft-mode)
           (setq neft--query "")
-          (with-current-buffer output
-            (insert "{\"query\":\"\",\"files\":[{\"path\":\"/tmp/a.org\",\"title\":\"alpha\",\"modified\":\"2026-01-01T00:00:00Z\",\"match_count\":0,\"snippets\":null}]}"))
-          (neft--handle-output output)
-          (should neft--results)
-          (goto-char (point-min))
-          (should (search-forward "alpha" nil t))
-          (should-not (search-forward "No matches" nil t)))
-      (when (buffer-live-p output)
-        (kill-buffer output)))))
+          (neft--render-empty)
+          (process-put process 'neft-output "")
+          (neft--process-filter process "{\"query\":\"")
+          (neft--process-filter process "\"}")
+          (should (equal (process-get process 'neft-output)
+                         "{\"query\":\"\"}"))
+          (should (equal (buffer-string) "Search: \n\n")))
+      (when (process-live-p process)
+        (delete-process process)))))
 
 (ert-deftest neft-query-markers-track-end-insertion ()
   (with-temp-buffer
