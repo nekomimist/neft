@@ -1,6 +1,7 @@
 ;;; neft.el --- Fast Denote-oriented org search UI -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 nekomimist
+;; SPDX-License-Identifier: MIT
 
 ;; Author: nekomimist
 ;; Version: 0.1.0

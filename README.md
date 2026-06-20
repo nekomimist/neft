@@ -51,3 +51,7 @@ neft search --query "kensaku memo" --root ~/notes --format json
 
 The output is JSON containing matched files, snippet lines, line numbers, and
 match ranges.
+
+## License
+
+MIT License.  See `LICENSE`.
