@@ -94,6 +94,45 @@
       (cancel-timer neft--timer)
       (setq neft--timer nil))))
 
+(ert-deftest neft-render-results-preserves-query-point-offset ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "abcdef")
+    (neft--render-empty)
+    (goto-char (+ (marker-position neft--query-start) 2))
+    (neft--render-results
+     '((query . "abcdef")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . nil))))))
+    (should (= (point)
+               (+ (marker-position neft--query-start) 2)))))
+
+(ert-deftest neft-start-search-invalidates-killed-process-before-sentinel ()
+  (with-temp-buffer
+    (neft-mode)
+    (let ((neft-directories '("/tmp"))
+          (started-generations nil))
+      (let ((original-make-process (symbol-function 'make-process)))
+        (cl-letf (((symbol-function 'make-process)
+                   (lambda (&rest _args)
+                     (let ((process (funcall original-make-process
+                                             :name "neft-test-sleep"
+                                             :buffer nil
+                                             :command '("sleep" "5"))))
+                       (push neft--generation started-generations)
+                       process))))
+          (neft--start-search)
+          (let ((first-process neft--process)
+                (first-generation neft--generation))
+            (neft--start-search)
+            (should (> neft--generation first-generation))
+            (should-not (process-live-p first-process))
+            (should (equal (nreverse started-generations) '(1 2)))
+            (when (process-live-p neft--process)
+              (delete-process neft--process))))))))
+
 (ert-deftest neft-open-result-visits-file-line ()
   (let ((file (make-temp-file "neft" nil ".org" "one\ntwo\nthree\n")))
     (unwind-protect

@@ -204,9 +204,9 @@
 (defun neft--start-search ()
   (unless neft-directories
     (user-error "Set `neft-directories' before using neft"))
+  (cl-incf neft--generation)
   (when (process-live-p neft--process)
     (delete-process neft--process))
-  (cl-incf neft--generation)
   (let* ((generation neft--generation)
          (output-buffer (generate-new-buffer " *neft-output*"))
          (args (neft--process-args neft--query)))
@@ -269,11 +269,12 @@
 
 (defun neft--render-results (result)
   (let ((query neft--query)
-        (files (alist-get 'files result)))
+        (files (alist-get 'files result))
+        (query-offset (and (neft--in-query-p)
+                           (- (point) (marker-position neft--query-start)))))
     (let ((inhibit-read-only t)
-          (point-at-query (and neft--query-start neft--query-end
-                               (<= (marker-position neft--query-start) (point))
-                               (<= (point) (marker-position neft--query-end)))))
+          (old-path (get-text-property (point) 'neft-path))
+          (old-line (get-text-property (point) 'neft-line)))
       (neft--render-empty)
       (if files
           (dolist (file files)
@@ -282,8 +283,22 @@
       (setq neft--query query)
       (add-text-properties (1+ (marker-position neft--query-end)) (point-max)
                            '(read-only t rear-nonsticky t))
-      (when point-at-query
-        (goto-char (marker-position neft--query-end))))))
+      (cond
+       (query-offset
+        (goto-char (min (+ (marker-position neft--query-start) query-offset)
+                        (marker-position neft--query-end))))
+       ((and old-path old-line)
+        (neft--goto-result old-path old-line))))))
+
+(defun neft--goto-result (path line)
+  (goto-char (point-min))
+  (let ((found nil))
+    (while (and (not found)
+                (text-property-search-forward 'neft-path path t))
+      (when (equal (get-text-property (point) 'neft-line) line)
+        (setq found t)))
+    (unless found
+      (goto-char (point-min)))))
 
 (defun neft--insert-file (file)
   (let ((path (alist-get 'path file))
