@@ -64,6 +64,24 @@
       (should (or (eq face 'neft-match-face)
                   (memq 'neft-match-face face))))))
 
+(ert-deftest neft-render-results-highlights-indented-match-ranges ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "needle")
+    (neft--render-results
+     '((query . "needle")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . (((line . 3)
+                                (text . "  needle")
+                                (matches . (((start . 2) (end . 8))))))))))))
+    (goto-char (point-min))
+    (should (search-forward "  needle" nil t))
+    (let ((face (get-text-property (+ (match-beginning 0) 2) 'face)))
+      (should (or (eq face 'neft-match-face)
+                  (memq 'neft-match-face face))))))
+
 (ert-deftest neft-render-results-keeps-files-spaced-not-snippets ()
   (with-temp-buffer
     (neft-mode)

@@ -40,6 +40,32 @@ func TestRunSearchesRecursiveOrgFilesWithMigemoAndANDTerms(t *testing.T) {
 	}
 }
 
+func TestRunPreservesSnippetLeadingWhitespace(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "indented.org"), "  needle\n")
+
+	result, err := Run(Options{
+		Query:            "needle",
+		Roots:            []string{root},
+		Recursive:        true,
+		SnippetsWhenFew:  5,
+		SnippetsWhenMany: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 || len(result.Files[0].Snippets) != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	snippet := result.Files[0].Snippets[0]
+	if snippet.Text != "  needle" {
+		t.Fatalf("text = %q, want leading spaces preserved", snippet.Text)
+	}
+	if len(snippet.Matches) != 1 || snippet.Matches[0].Start != 2 || snippet.Matches[0].End != 8 {
+		t.Fatalf("matches = %#v, want range 2..8", snippet.Matches)
+	}
+}
+
 func TestRunLimitsSnippetsWhenManyFilesMatch(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "one.org"), "needle\nneedle\nneedle\n")

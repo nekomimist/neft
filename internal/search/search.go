@@ -303,7 +303,7 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int) (fileScan
 		if len(snippets) < maxSnippets {
 			snippets = append(snippets, LineSnippet{
 				Line:    lineNumber,
-				Text:    strings.TrimSpace(text),
+				Text:    text,
 				Matches: ranges,
 			})
 		}
