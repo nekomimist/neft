@@ -172,6 +172,41 @@
       (cancel-timer neft--timer)
       (setq neft--timer nil))))
 
+(ert-deftest neft-query-is-the-only-writable-area ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "abc")
+    (neft--render-results
+     '((query . "abc")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . (((line . 1)
+                                (text . "abc")
+                                (matches . (((start . 0) (end . 3))))))))))))
+    (let ((original (buffer-string)))
+      (goto-char (point-min))
+      (should-error (insert "x") :type 'text-read-only)
+      (should-error (insert "x") :type 'text-read-only)
+      (should (equal (buffer-string) original)))
+    (goto-char (marker-position neft--query-end))
+    (insert "d")
+    (should (equal neft--query "abcd"))
+    (goto-char (point-min))
+    (search-forward "alpha")
+    (let ((original (buffer-string)))
+      (should-error (insert "x") :type 'text-read-only)
+      (should-error (insert "x") :type 'text-read-only)
+      (should (equal (buffer-string) original)))
+    (goto-char (point-max))
+    (let ((original (buffer-string)))
+      (should-error (insert "x") :type 'text-read-only)
+      (should-error (insert "x") :type 'text-read-only)
+      (should (equal (buffer-string) original)))
+    (when neft--timer
+      (cancel-timer neft--timer)
+      (setq neft--timer nil))))
+
 (ert-deftest neft-query-accepts-self-insert-and-dwim-keys ()
   (with-temp-buffer
     (neft-mode)
@@ -188,6 +223,26 @@
     (when neft--timer
       (cancel-timer neft--timer)
       (setq neft--timer nil))))
+
+(ert-deftest neft-move-beginning-of-line-stops-at-query-start ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "abcdef")
+    (neft--render-results
+     '((query . "abcdef")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . (((line . 12)
+                                (text . "abcdef")
+                                (matches . (((start . 0) (end . 6))))))))))))
+    (goto-char (marker-position neft--query-end))
+    (neft-move-beginning-of-line)
+    (should (= (point) (marker-position neft--query-start)))
+    (goto-char (point-min))
+    (search-forward "abcdef" nil nil 2)
+    (neft-move-beginning-of-line)
+    (should (= (current-column) 0))))
 
 (ert-deftest neft-mode-disables-completion-preview ()
   (with-temp-buffer

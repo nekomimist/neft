@@ -9,3 +9,4 @@
 - Add configurable search file extensions, defaulting to `.org`.
 - Fix match highlighting for indented snippet lines.
 - Disable completion previews in the neft search buffer.
+- Make the prompt and search results read-only.

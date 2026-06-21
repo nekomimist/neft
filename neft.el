@@ -109,6 +109,7 @@ Extensions may be written with or without a leading dot."
     (define-key map (kbd "g") #'neft-refresh-or-insert)
     (define-key map (kbd "q") #'neft-quit-or-insert)
     (define-key map (kbd "C-c C-k") #'neft-clear-query)
+    (define-key map [remap move-beginning-of-line] #'neft-move-beginning-of-line)
     map)
   "Keymap for `neft-mode'.")
 
@@ -207,6 +208,14 @@ Extensions may be written with or without a leading dot."
     (when line
       (goto-char (point-min))
       (forward-line (1- line)))))
+
+(defun neft-move-beginning-of-line ()
+  "Move to the query start on the query row, otherwise to line beginning."
+  (interactive)
+  (if (and (markerp neft--query-start)
+           (= (line-number-at-pos) 1))
+      (goto-char (marker-position neft--query-start))
+    (call-interactively #'move-beginning-of-line)))
 
 (defun neft--in-query-p (&optional position)
   (let ((position (or position (point))))
@@ -316,7 +325,11 @@ Extensions may be written with or without a leading dot."
   (let ((inhibit-read-only t)
         (inhibit-modification-hooks t))
     (erase-buffer)
-    (insert (propertize "Search: " 'face 'neft-query-face))
+    (insert (propertize "Search: "
+                        'face 'neft-query-face
+                        'read-only t
+                        'front-sticky '(read-only)
+                        'rear-nonsticky '(read-only face front-sticky)))
     (setq neft--query-start (copy-marker (point)))
     (insert neft--query)
     (setq neft--query-end (copy-marker (point)))
@@ -337,7 +350,8 @@ Extensions may be written with or without a leading dot."
         (insert "No matches\n"))
       (setq neft--query query)
       (add-text-properties (1+ (marker-position neft--query-end)) (point-max)
-                           '(read-only t rear-nonsticky t))
+                           '(read-only t
+                             front-sticky (read-only)))
       (cond
        (query-offset
         (goto-char (min (+ (marker-position neft--query-start) query-offset)

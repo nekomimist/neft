@@ -12,6 +12,10 @@ process results using a generation counter.  The search buffer disables
 completion-at-point and Emacs 30 completion previews because the query row is a
 purpose-built input field that is redrawn as search results arrive.
 
+Only the query text after the `Search:` label is writable.  The prompt and
+rendered results use read-only text properties and sticky boundaries so normal
+editing commands cannot insert text outside the query marker range.
+
 By default, `M-x neft` treats the search buffer as a temporary full-window
 session.  It saves the current window configuration before displaying `*neft*`,
 deletes other windows, and restores the saved configuration once when neft is
