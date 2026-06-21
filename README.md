@@ -7,6 +7,7 @@ search and migemo expansion.
 ## Features
 
 - Dedicated `*neft*` buffer with a query row at the top.
+- Full-window search session that restores the previous window layout on quit.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default.
 - Space-separated AND terms.
@@ -40,6 +41,8 @@ Run `M-x neft`.
 - `neft-many-results-threshold`: switch point for compact snippets.
 - `neft-snippets-when-many`: snippets per file for broad matches.
 - `neft-snippets-when-few`: snippets per file for narrow matches.
+- `neft-restore-window-configuration`: restore the previous window layout when
+  quitting or killing the neft buffer.
 
 ## CLI
 

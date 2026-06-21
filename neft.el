@@ -59,6 +59,11 @@
   :type 'integer
   :group 'neft)
 
+(defcustom neft-restore-window-configuration t
+  "Whether `neft' restores the previous window layout when quitting."
+  :type 'boolean
+  :group 'neft)
+
 (defface neft-query-face
   '((t :inherit minibuffer-prompt))
   "Face for the query label."
@@ -86,6 +91,8 @@
 (defvar-local neft--results nil)
 (defvar-local neft--query-start nil)
 (defvar-local neft--query-end nil)
+(defvar-local neft--window-configuration nil)
+(defvar-local neft--window-frame nil)
 
 (defvar neft-mode-map
   (let ((map (make-sparse-keymap)))
@@ -103,17 +110,26 @@
   "Major mode for the neft search buffer."
   (setq-local buffer-read-only nil)
   (setq-local truncate-lines t)
-  (add-hook 'after-change-functions #'neft--after-change nil t))
+  (add-hook 'after-change-functions #'neft--after-change nil t)
+  (add-hook 'kill-buffer-hook #'neft--restore-window-configuration nil t))
 
 ;;;###autoload
 (defun neft ()
   "Open the neft search buffer."
   (interactive)
-  (let ((buffer (get-buffer-create "*neft*")))
+  (let ((buffer (get-buffer-create "*neft*"))
+        (window-configuration (current-window-configuration))
+        (frame (selected-frame)))
     (pop-to-buffer buffer)
+    (when neft-restore-window-configuration
+      (delete-other-windows))
     (unless (derived-mode-p 'neft-mode)
       (neft-mode)
       (neft--render-empty))
+    (when (and neft-restore-window-configuration
+               (not neft--window-configuration))
+      (setq neft--window-configuration window-configuration
+            neft--window-frame frame))
     (goto-char neft--query-end)
     (neft-refresh)))
 
@@ -148,6 +164,12 @@
   (interactive)
   (if (neft--in-query-p)
       (insert "q")
+    (neft-quit)))
+
+(defun neft-quit ()
+  "Quit neft and restore the window layout saved at startup."
+  (interactive)
+  (unless (neft--restore-window-configuration)
     (quit-window)))
 
 (defun neft-clear-query ()
@@ -177,6 +199,17 @@
     (and (markerp neft--query-start)
          (<= (marker-position neft--query-start) position)
          (= (line-number-at-pos position) 1))))
+
+(defun neft--restore-window-configuration ()
+  (when (and neft-restore-window-configuration
+             neft--window-configuration)
+    (let ((configuration neft--window-configuration)
+          (frame neft--window-frame))
+      (setq neft--window-configuration nil
+            neft--window-frame nil)
+      (when (or (not frame) (frame-live-p frame))
+        (set-window-configuration configuration)
+        t))))
 
 (defun neft--after-change (beg _end _len)
   (when (and (markerp neft--query-start)

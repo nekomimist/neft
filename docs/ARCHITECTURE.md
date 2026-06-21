@@ -10,6 +10,11 @@ The Emacs package owns the interactive experience.  It opens a dedicated
 external executable asynchronously with `make-process`, and ignores stale
 process results using a generation counter.
 
+By default, `M-x neft` treats the search buffer as a temporary full-window
+session.  It saves the current window configuration before displaying `*neft*`,
+deletes other windows, and restores the saved configuration once when neft is
+quit or when the neft buffer is killed.
+
 The Go executable owns file discovery, migemo expansion, matching, snippet
 selection, and JSON serialization.  It does not keep a daemon, index, cache, or
 file watcher in the initial design.  Each search recursively scans configured
