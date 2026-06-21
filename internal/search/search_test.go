@@ -86,6 +86,75 @@ func TestRunEmptyQueryReturnsRecentOrgFiles(t *testing.T) {
 	}
 }
 
+func TestRunSearchesConfiguredTextExtensions(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "one.org"), "needle org\n")
+	writeFile(t, filepath.Join(root, "two.txt"), "needle txt\n")
+	writeFile(t, filepath.Join(root, "three.md"), "needle md\n")
+
+	result, err := Run(Options{
+		Query:      "needle",
+		Roots:      []string{root},
+		Extensions: []string{"org", "txt"},
+		Recursive:  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 2 {
+		t.Fatalf("files = %d, want 2: %#v", len(result.Files), result.Files)
+	}
+	paths := map[string]bool{}
+	for _, file := range result.Files {
+		paths[filepath.Base(file.Path)] = true
+	}
+	if !paths["one.org"] || !paths["two.txt"] || paths["three.md"] {
+		t.Fatalf("paths = %#v", paths)
+	}
+}
+
+func TestRunSearchesConfiguredDirectFileRoot(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "plain.txt")
+	writeFile(t, file, "needle\n")
+
+	result, err := Run(Options{
+		Query:      "needle",
+		Roots:      []string{file},
+		Extensions: []string{".txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "plain" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunMatchesConfiguredExtensionsCaseInsensitively(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "upper.TXT"), "needle\n")
+
+	result, err := Run(Options{
+		Query:      "needle",
+		Roots:      []string{root},
+		Extensions: []string{"txt"},
+		Recursive:  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if filepath.Base(result.Files[0].Path) != "upper.TXT" {
+		t.Fatalf("path = %q", result.Files[0].Path)
+	}
+}
+
 func writeFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

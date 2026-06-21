@@ -1,6 +1,6 @@
 # neft
 
-neft is a Deft-inspired Emacs package for searching org note trees, including
+neft is a Deft-inspired Emacs package for searching text note trees, including
 Denote directories.  It uses a small external Go executable for fast recursive
 search and migemo expansion.
 
@@ -9,7 +9,7 @@ search and migemo expansion.
 - Dedicated `*neft*` buffer with a query row at the top.
 - Full-window search session that restores the previous window layout on quit.
 - Multiple search roots via `neft-directories`.
-- Recursive `.org` search by default.
+- Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.
 - Japanese migemo search handled by the external executable.
 - Real-time result updates and match highlighting.
@@ -30,13 +30,16 @@ Configure Emacs:
 (require 'neft)
 (setq neft-program "/path/to/neft/bin/neft")
 (setq neft-directories '("~/notes" "~/work/notes"))
+;; Optional: also search plain text notes.
+(setq neft-file-extensions '("org" "txt"))
 ```
 
 Run `M-x neft`.
 
 ## Customization
 
-- `neft-directories`: roots or `.org` files to search.
+- `neft-directories`: roots or files to search.
+- `neft-file-extensions`: file extensions to search.
 - `neft-recursive`: search child directories.
 - `neft-many-results-threshold`: switch point for compact snippets.
 - `neft-snippets-when-many`: snippets per file for broad matches.
@@ -49,7 +52,7 @@ Run `M-x neft`.
 The executable can be used directly:
 
 ```sh
-neft search --query "kensaku memo" --root ~/notes --format json
+neft search --query "kensaku memo" --root ~/notes --extension org --format json
 ```
 
 The output is JSON containing matched files, snippet lines, line numbers, and

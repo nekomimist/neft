@@ -6,6 +6,7 @@
 (ert-deftest neft-process-args-include-roots-and-thresholds ()
   (let ((neft-directories '("/tmp/a" "/tmp/b"))
         (neft-recursive t)
+        (neft-file-extensions '("org"))
         (neft-many-results-threshold 12)
         (neft-snippets-when-many 1)
         (neft-snippets-when-few 4))
@@ -15,17 +16,33 @@
                      "--many-threshold" "12"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "4"
+                     "--extension" "org"
                      "--root" "/tmp/a"
                      "--root" "/tmp/b")))))
 
 (ert-deftest neft-process-args-preserve-empty-query ()
-  (let ((neft-directories '("/tmp/a")))
+  (let ((neft-directories '("/tmp/a"))
+        (neft-file-extensions '("org")))
     (should (equal (neft--process-args "")
                    '("search" "--query=" "--format" "json"
                      "--recursive=true"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"
+                     "--extension" "org"
+                     "--root" "/tmp/a")))))
+
+(ert-deftest neft-process-args-include-file-extensions ()
+  (let ((neft-directories '("/tmp/a"))
+        (neft-file-extensions '("org" ".txt" "")))
+    (should (equal (neft--process-args "memo")
+                   '("search" "--query=memo" "--format" "json"
+                     "--recursive=true"
+                     "--many-threshold" "50"
+                     "--snippets-when-many" "1"
+                     "--snippets-when-few" "5"
+                     "--extension" "org"
+                     "--extension" ".txt"
                      "--root" "/tmp/a")))))
 
 (ert-deftest neft-render-results-highlights-match-ranges ()

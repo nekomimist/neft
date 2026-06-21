@@ -18,19 +18,20 @@ quit or when the neft buffer is killed.
 The Go executable owns file discovery, migemo expansion, matching, snippet
 selection, and JSON serialization.  It does not keep a daemon, index, cache, or
 file watcher in the initial design.  Each search recursively scans configured
-roots for `.org` files.
+roots for files with configured extensions.
 
 ## Search Contract
 
 Emacs calls:
 
 ```sh
-neft search --query QUERY --root DIR --format json
+neft search --query QUERY --root DIR --extension EXT --format json
 ```
 
-Multiple `--root` flags are accepted.  JSON results include file path, display
-title, modified time, total matching line count, snippet lines, line numbers,
-and character ranges for highlighting.
+Multiple `--root` and `--extension` flags are accepted.  When no extension is
+specified, the CLI searches `org` files.  JSON results include file path,
+display title, modified time, total matching line count, snippet lines, line
+numbers, and character ranges for highlighting.
 
 Queries are split on whitespace.  Every term must match the same line for that
 line to become a snippet.  Each term is expanded through gomigemo before

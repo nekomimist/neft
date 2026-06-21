@@ -19,6 +19,7 @@ import (
 type Options struct {
 	Query            string
 	Roots            []string
+	Extensions       []string
 	Recursive        bool
 	ManyThreshold    int
 	SnippetsWhenMany int
@@ -63,7 +64,7 @@ type fileScan struct {
 
 func Run(opts Options) (Result, error) {
 	opts = normalizeOptions(opts)
-	candidates, err := collectCandidates(opts.Roots, opts.Recursive)
+	candidates, err := collectCandidates(opts.Roots, opts.Recursive, opts.Extensions)
 	if err != nil {
 		return Result{}, err
 	}
@@ -114,6 +115,7 @@ func Run(opts Options) (Result, error) {
 }
 
 func normalizeOptions(opts Options) Options {
+	opts.Extensions = normalizeExtensions(opts.Extensions)
 	if opts.ManyThreshold <= 0 {
 		opts.ManyThreshold = 50
 	}
@@ -126,7 +128,30 @@ func normalizeOptions(opts Options) Options {
 	return opts
 }
 
-func collectCandidates(roots []string, recursive bool) ([]candidate, error) {
+func normalizeExtensions(extensions []string) []string {
+	if len(extensions) == 0 {
+		extensions = []string{"org"}
+	}
+	seen := map[string]bool{}
+	normalized := make([]string, 0, len(extensions))
+	for _, ext := range extensions {
+		ext = strings.TrimSpace(ext)
+		ext = strings.TrimPrefix(ext, ".")
+		ext = strings.ToLower(ext)
+		if ext == "" || seen[ext] {
+			continue
+		}
+		seen[ext] = true
+		normalized = append(normalized, ext)
+	}
+	if len(normalized) == 0 {
+		return []string{"org"}
+	}
+	return normalized
+}
+
+func collectCandidates(roots []string, recursive bool, extensions []string) ([]candidate, error) {
+	allowedExtensions := extensionSet(extensions)
 	seen := map[string]bool{}
 	var candidates []candidate
 	for _, root := range roots {
@@ -136,7 +161,7 @@ func collectCandidates(roots []string, recursive bool) ([]candidate, error) {
 			return nil, err
 		}
 		if !info.IsDir() {
-			if strings.EqualFold(filepath.Ext(root), ".org") {
+			if matchesExtension(root, allowedExtensions) {
 				candidates = appendCandidate(candidates, seen, root, info)
 			}
 			continue
@@ -149,7 +174,7 @@ func collectCandidates(roots []string, recursive bool) ([]candidate, error) {
 				if entry.IsDir() {
 					return nil
 				}
-				if !strings.EqualFold(filepath.Ext(path), ".org") {
+				if !matchesExtension(path, allowedExtensions) {
 					return nil
 				}
 				info, err := entry.Info()
@@ -165,7 +190,7 @@ func collectCandidates(roots []string, recursive bool) ([]candidate, error) {
 				return nil, readErr
 			}
 			for _, entry := range entries {
-				if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".org") {
+				if entry.IsDir() || !matchesExtension(entry.Name(), allowedExtensions) {
 					continue
 				}
 				path := filepath.Join(root, entry.Name())
@@ -185,6 +210,20 @@ func collectCandidates(roots []string, recursive bool) ([]candidate, error) {
 		return candidates[i].path < candidates[j].path
 	})
 	return candidates, nil
+}
+
+func extensionSet(extensions []string) map[string]bool {
+	allowed := map[string]bool{}
+	for _, ext := range normalizeExtensions(extensions) {
+		allowed[ext] = true
+	}
+	return allowed
+}
+
+func matchesExtension(path string, allowed map[string]bool) bool {
+	ext := strings.TrimPrefix(filepath.Ext(path), ".")
+	ext = strings.ToLower(ext)
+	return allowed[ext]
 }
 
 func appendCandidate(candidates []candidate, seen map[string]bool, path string, info os.FileInfo) []candidate {

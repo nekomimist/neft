@@ -11,18 +11,20 @@ import (
 
 type rootFlags []string
 
-func (r *rootFlags) String() string {
+type repeatedFlags []string
+
+func (r *repeatedFlags) String() string {
 	return fmt.Sprint([]string(*r))
 }
 
-func (r *rootFlags) Set(value string) error {
+func (r *repeatedFlags) Set(value string) error {
 	*r = append(*r, value)
 	return nil
 }
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] != "search" {
-		fmt.Fprintln(os.Stderr, "usage: neft search --query QUERY --root DIR [--root DIR...] --format json")
+		fmt.Fprintln(os.Stderr, "usage: neft search --query QUERY --root DIR [--root DIR...] [--extension EXT...] --format json")
 		os.Exit(2)
 	}
 	if err := runSearch(os.Args[2:]); err != nil {
@@ -32,7 +34,8 @@ func main() {
 }
 
 func runSearch(args []string) error {
-	var roots rootFlags
+	var roots repeatedFlags
+	var extensions repeatedFlags
 	var query string
 	var format string
 	var recursive bool
@@ -44,6 +47,7 @@ func runSearch(args []string) error {
 	fs.SetOutput(os.Stderr)
 	fs.StringVar(&query, "query", "", "search query")
 	fs.Var(&roots, "root", "root directory to search")
+	fs.Var(&extensions, "extension", "file extension to search")
 	fs.StringVar(&format, "format", "json", "output format")
 	fs.BoolVar(&recursive, "recursive", true, "search child directories recursively")
 	fs.IntVar(&manyThreshold, "many-threshold", 50, "file-count threshold for compact snippets")
@@ -62,6 +66,7 @@ func runSearch(args []string) error {
 	result, err := search.Run(search.Options{
 		Query:            query,
 		Roots:            []string(roots),
+		Extensions:       []string(extensions),
 		Recursive:        recursive,
 		ManyThreshold:    manyThreshold,
 		SnippetsWhenMany: snippetsWhenMany,

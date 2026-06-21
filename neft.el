@@ -1,4 +1,4 @@
-;;; neft.el --- Fast Denote-oriented org search UI -*- lexical-binding: t; -*-
+;;; neft.el --- Fast Denote-oriented text search UI -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 nekomimist
 ;; SPDX-License-Identifier: MIT
@@ -12,7 +12,7 @@
 ;;; Commentary:
 
 ;; neft provides a Deft-inspired search buffer backed by an external Go
-;; executable.  It is designed for org files, including Denote note trees.
+;; executable.  It is designed for Denote-oriented text note trees.
 
 ;;; Code:
 
@@ -21,12 +21,19 @@
 (require 'subr-x)
 
 (defgroup neft nil
-  "Fast org search UI backed by the neft executable."
+  "Fast text note search UI backed by the neft executable."
   :group 'convenience)
 
 (defcustom neft-directories nil
-  "Directories or org files searched by `neft'."
+  "Directories or text files searched by `neft'."
   :type '(repeat directory)
+  :group 'neft)
+
+(defcustom neft-file-extensions '("org")
+  "File extensions searched by `neft'.
+
+Extensions may be written with or without a leading dot."
+  :type '(repeat string)
   :group 'neft)
 
 (defcustom neft-recursive t
@@ -281,6 +288,11 @@
          "--many-threshold" (number-to-string neft-many-results-threshold)
          "--snippets-when-many" (number-to-string neft-snippets-when-many)
          "--snippets-when-few" (number-to-string neft-snippets-when-few))
+   (cl-mapcan (lambda (extension)
+                (when-let* ((extension (string-trim extension))
+                            ((not (string-empty-p extension))))
+                  (list "--extension" extension)))
+              neft-file-extensions)
    (cl-mapcan (lambda (dir) (list "--root" (expand-file-name dir)))
               neft-directories)))
 
