@@ -189,6 +189,15 @@
       (cancel-timer neft--timer)
       (setq neft--timer nil))))
 
+(ert-deftest neft-mode-disables-completion-preview ()
+  (with-temp-buffer
+    (when (fboundp 'completion-preview-mode)
+      (completion-preview-mode 1))
+    (neft-mode)
+    (should (null completion-at-point-functions))
+    (when (boundp 'completion-preview-mode)
+      (should-not completion-preview-mode))))
+
 (ert-deftest neft-restores-window-configuration-on-quit ()
   (let ((left (get-buffer-create " *neft-test-left*"))
         (right (get-buffer-create " *neft-test-right*"))

@@ -117,8 +117,15 @@ Extensions may be written with or without a leading dot."
   "Major mode for the neft search buffer."
   (setq-local buffer-read-only nil)
   (setq-local truncate-lines t)
+  (setq-local completion-at-point-functions nil)
+  (neft--disable-completion-preview)
   (add-hook 'after-change-functions #'neft--after-change nil t)
   (add-hook 'kill-buffer-hook #'neft--restore-window-configuration nil t))
+
+(defun neft--disable-completion-preview ()
+  (when (and (fboundp 'completion-preview-mode)
+             (bound-and-true-p completion-preview-mode))
+    (completion-preview-mode -1)))
 
 ;;;###autoload
 (defun neft ()

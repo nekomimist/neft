@@ -8,3 +8,4 @@
 - Add full-window neft sessions that restore the previous window layout on quit.
 - Add configurable search file extensions, defaulting to `.org`.
 - Fix match highlighting for indented snippet lines.
+- Disable completion previews in the neft search buffer.

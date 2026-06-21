@@ -8,7 +8,9 @@ neft has two parts:
 The Emacs package owns the interactive experience.  It opens a dedicated
 `*neft*` buffer, keeps the query on the first line, debounces edits, starts the
 external executable asynchronously with `make-process`, and ignores stale
-process results using a generation counter.
+process results using a generation counter.  The search buffer disables
+completion-at-point and Emacs 30 completion previews because the query row is a
+purpose-built input field that is redrawn as search results arrive.
 
 By default, `M-x neft` treats the search buffer as a temporary full-window
 session.  It saves the current window configuration before displaying `*neft*`,
