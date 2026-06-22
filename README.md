@@ -10,6 +10,7 @@ search and migemo expansion.
 - Full-window search session that restores the previous window layout on quit.
 - Read-only result area, with editing limited to the query text.
 - Query-row editing commands keep the prompt and result separator intact.
+- `C-<down>` and `C-<up>` move between file results.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.

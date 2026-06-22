@@ -12,3 +12,4 @@
 - Make the prompt and search results read-only.
 - Prevent `kill-line` on an empty query from briefly deleting the search row
   newline.
+- Add `C-<down>` and `C-<up>` file-result navigation.

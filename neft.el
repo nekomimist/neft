@@ -111,6 +111,8 @@ Extensions may be written with or without a leading dot."
     (define-key map (kbd "C-c C-k") #'neft-clear-query)
     (define-key map [remap move-beginning-of-line] #'neft-move-beginning-of-line)
     (define-key map [remap kill-line] #'neft-kill-line)
+    (define-key map [remap forward-paragraph] #'neft-next-file)
+    (define-key map [remap backward-paragraph] #'neft-previous-file)
     map)
   "Keymap for `neft-mode'.")
 
@@ -227,11 +229,52 @@ Extensions may be written with or without a leading dot."
           (kill-region (point) query-end)))
     (call-interactively #'kill-line)))
 
+(defun neft-next-file ()
+  "Move point to the next file result."
+  (interactive)
+  (when-let* ((position (neft--next-file-heading-position)))
+    (goto-char position)))
+
+(defun neft-previous-file ()
+  "Move point to the previous file result."
+  (interactive)
+  (when-let* ((position (neft--previous-file-heading-position)))
+    (goto-char position)))
+
 (defun neft--in-query-p (&optional position)
   (let ((position (or position (point))))
     (and (markerp neft--query-start)
          (<= (marker-position neft--query-start) position)
          (= (line-number-at-pos position) 1))))
+
+(defun neft--next-file-heading-position (&optional position)
+  (let ((origin (or position (point))))
+    (cl-find-if (lambda (heading) (> heading origin))
+                (neft--file-heading-positions))))
+
+(defun neft--previous-file-heading-position (&optional position)
+  (let ((origin (or position (point))))
+    (cl-loop with previous = nil
+             for heading in (neft--file-heading-positions)
+             if (>= heading origin)
+             return previous
+             do (setq previous heading)
+             finally return previous)))
+
+(defun neft--file-heading-positions ()
+  (let ((positions nil)
+        (position (point-min))
+        in-heading)
+    (while (< position (point-max))
+      (let ((heading (get-text-property position 'neft-file-heading)))
+        (when (and heading (not in-heading))
+          (push position positions))
+        (setq in-heading heading)
+        (setq position
+              (or (next-single-property-change position 'neft-file-heading
+                                               nil (point-max))
+                  (point-max)))))
+    (nreverse positions)))
 
 (defun neft--restore-window-configuration ()
   (when (and neft-restore-window-configuration
@@ -388,8 +431,10 @@ Extensions may be written with or without a leading dot."
       (insert (propertize title 'face 'neft-file-face))
       (when (and match-count (> match-count 0))
         (insert (format " (%s)" match-count)))
-      (insert "\n")
-      (add-text-properties start (point) `(neft-path ,path neft-line 1)))
+      (add-text-properties start (point) `(neft-path ,path
+                                                     neft-line 1
+                                                     neft-file-heading t))
+      (insert "\n"))
     (insert (propertize path 'face 'neft-path-face) "\n")
     (if snippets
         (dolist (snippet snippets)

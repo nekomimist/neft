@@ -18,6 +18,10 @@ editing commands cannot insert text outside the query marker range.  Query-row
 commands that would otherwise cross the newline, such as `kill-line`, are
 remapped to operate only within the query marker range.
 
+Rendered file headings carry a dedicated text property for navigation.
+`forward-paragraph` and `backward-paragraph`, commonly bound to `C-<down>` and
+`C-<up>`, are remapped to move by file result instead of by visual paragraph.
+
 By default, `M-x neft` treats the search buffer as a temporary full-window
 session.  It saves the current window configuration before displaying `*neft*`,
 deletes other windows, and restores the saved configuration once when neft is
