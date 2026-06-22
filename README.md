@@ -9,6 +9,7 @@ search and migemo expansion.
 - Dedicated `*neft*` buffer with a query row at the top.
 - Full-window search session that restores the previous window layout on quit.
 - Read-only result area, with editing limited to the query text.
+- Query-row editing commands keep the prompt and result separator intact.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.

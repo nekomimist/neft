@@ -110,6 +110,7 @@ Extensions may be written with or without a leading dot."
     (define-key map (kbd "q") #'neft-quit-or-insert)
     (define-key map (kbd "C-c C-k") #'neft-clear-query)
     (define-key map [remap move-beginning-of-line] #'neft-move-beginning-of-line)
+    (define-key map [remap kill-line] #'neft-kill-line)
     map)
   "Keymap for `neft-mode'.")
 
@@ -216,6 +217,15 @@ Extensions may be written with or without a leading dot."
            (= (line-number-at-pos) 1))
       (goto-char (marker-position neft--query-start))
     (call-interactively #'move-beginning-of-line)))
+
+(defun neft-kill-line ()
+  "Kill query text to its end without deleting the query row newline."
+  (interactive)
+  (if (neft--in-query-p)
+      (let ((query-end (marker-position neft--query-end)))
+        (when (< (point) query-end)
+          (kill-region (point) query-end)))
+    (call-interactively #'kill-line)))
 
 (defun neft--in-query-p (&optional position)
   (let ((position (or position (point))))

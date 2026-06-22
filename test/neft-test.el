@@ -244,6 +244,40 @@
     (neft-move-beginning-of-line)
     (should (= (current-column) 0))))
 
+(ert-deftest neft-kill-line-preserves-query-row-newline-at-empty-query ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (let ((original (buffer-string)))
+      (goto-char (marker-position neft--query-end))
+      (neft-kill-line)
+      (should (equal (buffer-string) original))
+      (should (equal neft--query "")))))
+
+(ert-deftest neft-kill-line-kills-query-text-only ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "abcdef")
+    (neft--render-results
+     '((query . "abcdef")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . nil))))))
+    (goto-char (+ (marker-position neft--query-start) 2))
+    (neft-kill-line)
+    (should (equal neft--query "ab"))
+    (should (string-match-p "\\`Search: ab\n\nalpha" (buffer-string)))
+    (when neft--timer
+      (cancel-timer neft--timer)
+      (setq neft--timer nil))))
+
 (ert-deftest neft-mode-disables-completion-preview ()
   (with-temp-buffer
     (when (fboundp 'completion-preview-mode)

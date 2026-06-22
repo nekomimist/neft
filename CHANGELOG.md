@@ -10,3 +10,5 @@
 - Fix match highlighting for indented snippet lines.
 - Disable completion previews in the neft search buffer.
 - Make the prompt and search results read-only.
+- Prevent `kill-line` on an empty query from briefly deleting the search row
+  newline.

@@ -14,7 +14,9 @@ purpose-built input field that is redrawn as search results arrive.
 
 Only the query text after the `Search:` label is writable.  The prompt and
 rendered results use read-only text properties and sticky boundaries so normal
-editing commands cannot insert text outside the query marker range.
+editing commands cannot insert text outside the query marker range.  Query-row
+commands that would otherwise cross the newline, such as `kill-line`, are
+remapped to operate only within the query marker range.
 
 By default, `M-x neft` treats the search buffer as a temporary full-window
 session.  It saves the current window configuration before displaying `*neft*`,
