@@ -21,6 +21,7 @@ type Options struct {
 	Roots            []string
 	Extensions       []string
 	Recursive        bool
+	CaseSensitive    bool
 	ManyThreshold    int
 	SnippetsWhenMany int
 	SnippetsWhenFew  int
@@ -72,7 +73,7 @@ func Run(opts Options) (Result, error) {
 		return Result{Query: opts.Query, Files: recentFiles(candidates)}, nil
 	}
 
-	matchers, err := compileMatchers(opts.Query)
+	matchers, err := compileMatchers(opts.Query, opts.CaseSensitive)
 	if err != nil {
 		return Result{}, err
 	}
@@ -260,7 +261,7 @@ func recentFiles(candidates []candidate) []FileMatch {
 	return files
 }
 
-func compileMatchers(query string) ([]*regexp.Regexp, error) {
+func compileMatchers(query string, caseSensitive bool) ([]*regexp.Regexp, error) {
 	terms := strings.Fields(query)
 	if len(terms) == 0 {
 		return nil, errors.New("query has no terms")
@@ -274,6 +275,12 @@ func compileMatchers(query string) ([]*regexp.Regexp, error) {
 		re, err := migemo.Compile(dict, term)
 		if err != nil {
 			return nil, err
+		}
+		if !caseSensitive {
+			re, err = regexp.Compile("(?i:" + re.String() + ")")
+			if err != nil {
+				return nil, err
+			}
 		}
 		matchers = append(matchers, re)
 	}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestRunSearchesRecursiveOrgFilesWithMigemoAndANDTerms(t *testing.T) {
@@ -112,6 +113,71 @@ func TestRunEmptyQueryReturnsRecentOrgFiles(t *testing.T) {
 	}
 }
 
+func TestRunSortsMatchesByModifiedTimeDescending(t *testing.T) {
+	root := t.TempDir()
+	oldPath := filepath.Join(root, "old.org")
+	newPath := filepath.Join(root, "new.org")
+	writeFileWithModTime(t, oldPath, "needle\n", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	writeFileWithModTime(t, newPath, "needle\n", time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 2 {
+		t.Fatalf("files = %d, want 2", len(result.Files))
+	}
+	if filepath.Base(result.Files[0].Path) != "new.org" {
+		t.Fatalf("first path = %q, want new.org", result.Files[0].Path)
+	}
+	if filepath.Base(result.Files[1].Path) != "old.org" {
+		t.Fatalf("second path = %q, want old.org", result.Files[1].Path)
+	}
+}
+
+func TestRunMatchesCaseInsensitivelyByDefault(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "mixed.org"), "Needle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	matches := result.Files[0].Snippets[0].Matches
+	if len(matches) != 1 || matches[0].Start != 0 || matches[0].End != 6 {
+		t.Fatalf("matches = %#v, want range 0..6", matches)
+	}
+}
+
+func TestRunCanMatchCaseSensitively(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "mixed.org"), "Needle\n")
+
+	result, err := Run(Options{
+		Query:         "needle",
+		Roots:         []string{root},
+		Recursive:     true,
+		CaseSensitive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 0 {
+		t.Fatalf("files = %d, want 0: %#v", len(result.Files), result.Files)
+	}
+}
+
 func TestRunSearchesConfiguredTextExtensions(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "one.org"), "needle org\n")
@@ -187,6 +253,14 @@ func writeFile(t *testing.T, path string, content string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFileWithModTime(t *testing.T, path string, content string, modTime time.Time) {
+	t.Helper()
+	writeFile(t, path, content)
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
 		t.Fatal(err)
 	}
 }

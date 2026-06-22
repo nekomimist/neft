@@ -24,7 +24,7 @@ func (r *repeatedFlags) Set(value string) error {
 
 func main() {
 	if len(os.Args) < 2 || os.Args[1] != "search" {
-		fmt.Fprintln(os.Stderr, "usage: neft search --query QUERY --root DIR [--root DIR...] [--extension EXT...] --format json")
+		fmt.Fprintln(os.Stderr, "usage: neft search --query QUERY --root DIR [--root DIR...] [--extension EXT...] [--case-sensitive=true|false] --format json")
 		os.Exit(2)
 	}
 	if err := runSearch(os.Args[2:]); err != nil {
@@ -39,6 +39,7 @@ func runSearch(args []string) error {
 	var query string
 	var format string
 	var recursive bool
+	var caseSensitive bool
 	var manyThreshold int
 	var snippetsWhenMany int
 	var snippetsWhenFew int
@@ -50,6 +51,7 @@ func runSearch(args []string) error {
 	fs.Var(&extensions, "extension", "file extension to search")
 	fs.StringVar(&format, "format", "json", "output format")
 	fs.BoolVar(&recursive, "recursive", true, "search child directories recursively")
+	fs.BoolVar(&caseSensitive, "case-sensitive", false, "match case sensitively")
 	fs.IntVar(&manyThreshold, "many-threshold", 50, "file-count threshold for compact snippets")
 	fs.IntVar(&snippetsWhenMany, "snippets-when-many", 1, "snippets per file for many results")
 	fs.IntVar(&snippetsWhenFew, "snippets-when-few", 5, "snippets per file for few results")
@@ -68,6 +70,7 @@ func runSearch(args []string) error {
 		Roots:            []string(roots),
 		Extensions:       []string(extensions),
 		Recursive:        recursive,
+		CaseSensitive:    caseSensitive,
 		ManyThreshold:    manyThreshold,
 		SnippetsWhenMany: snippetsWhenMany,
 		SnippetsWhenFew:  snippetsWhenFew,

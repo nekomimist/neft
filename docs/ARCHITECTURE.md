@@ -12,18 +12,18 @@ process results using a generation counter.  The search buffer disables
 completion-at-point and Emacs 30 completion previews because the query row is a
 purpose-built input field that is redrawn as search results arrive.
 
-Only the query text after the `Search:` label is writable.  The prompt and
-rendered results use read-only text properties and sticky boundaries so normal
-editing commands cannot insert text outside the query marker range.  Query-row
-commands that would otherwise cross the newline, such as `kill-line`, are
-remapped to operate only within the query marker range.
+Only the query text after the case-mode search label is writable.  The prompt
+and rendered results use read-only text properties and sticky boundaries so
+normal editing commands cannot insert text outside the query marker range.
+Query-row commands that would otherwise cross the newline, such as `kill-line`,
+are remapped to operate only within the query marker range.
 
-Rendered file headings show the display title and carry dedicated text
-properties for navigation.  File paths stay out of the visible result list and
-are exposed through `help-echo` for standard hover help.  `neft-mode` also uses
-a buffer-local `post-command-hook` to show the file path in the echo area when
-point moves over a result, so path visibility does not depend on global idle
-help settings.
+Rendered file headings show the modified date and display title, and carry
+dedicated text properties for navigation.  File paths stay out of the visible
+result list and are exposed through `help-echo` for standard hover help.
+`neft-mode` also uses a buffer-local `post-command-hook` to show the file path
+in the echo area when point moves over a result, so path visibility does not
+depend on global idle help settings.
 `forward-paragraph` and `backward-paragraph`, commonly bound to `C-<down>` and
 `C-<up>`, are remapped to move by file result instead of by visual paragraph.
 
@@ -42,7 +42,7 @@ roots for files with configured extensions.
 Emacs calls:
 
 ```sh
-neft search --query QUERY --root DIR --extension EXT --format json
+neft search --query QUERY --root DIR --extension EXT --case-sensitive BOOL --format json
 ```
 
 Multiple `--root` and `--extension` flags are accepted.  When no extension is
@@ -51,10 +51,15 @@ display title, modified time, total matching line count, snippet lines, line
 numbers, and character ranges for highlighting.
 
 Queries are split on whitespace.  Every term must match the same line for that
-line to become a snippet.  Each term is expanded through gomigemo before
-matching, so romanized Japanese queries can match Japanese text.
+line to become a snippet.  Matching is case-insensitive by default and can be
+made case-sensitive through `--case-sensitive`; each term is expanded through
+gomigemo before matching, so romanized Japanese queries can match Japanese
+text.
 
 ## Result Density
+
+Results are sorted by file modification time descending, with path order as the
+tie-breaker.
 
 When many files match, the CLI returns one snippet per file by default.  When
 the number of matching files drops below `neft-many-results-threshold`, it

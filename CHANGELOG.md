@@ -17,3 +17,6 @@
   hover help.
 - Show result file paths in the echo area when point moves over a result,
   independent of global idle help settings.
+- Match case-insensitively by default, with `C-c C-s` and `--case-sensitive`
+  for sensitive searches.
+- Prefix result headings with each file's modified date.

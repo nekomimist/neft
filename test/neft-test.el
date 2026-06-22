@@ -13,6 +13,7 @@
     (should (equal (neft--process-args "foo bar")
                    '("search" "--query=foo bar" "--format" "json"
                      "--recursive=true"
+                     "--case-sensitive=false"
                      "--many-threshold" "12"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "4"
@@ -26,6 +27,7 @@
     (should (equal (neft--process-args "")
                    '("search" "--query=" "--format" "json"
                      "--recursive=true"
+                     "--case-sensitive=false"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"
@@ -38,11 +40,26 @@
     (should (equal (neft--process-args "memo")
                    '("search" "--query=memo" "--format" "json"
                      "--recursive=true"
+                     "--case-sensitive=false"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"
                      "--extension" "org"
                      "--extension" ".txt"
+                     "--root" "/tmp/a")))))
+
+(ert-deftest neft-process-args-include-case-sensitive-mode ()
+  (let ((neft-directories '("/tmp/a"))
+        (neft-file-extensions '("org"))
+        (neft-case-sensitive t))
+    (should (equal (neft--process-args "memo")
+                   '("search" "--query=memo" "--format" "json"
+                     "--recursive=true"
+                     "--case-sensitive=true"
+                     "--many-threshold" "50"
+                     "--snippets-when-many" "1"
+                     "--snippets-when-few" "5"
+                     "--extension" "org"
                      "--root" "/tmp/a")))))
 
 (ert-deftest neft-render-results-highlights-match-ranges ()
@@ -150,6 +167,24 @@
                      "/tmp/a.org")))
     (should-not (search-forward "/tmp/a.org" nil t))))
 
+(ert-deftest neft-render-results-prefixes-title-with-modified-date ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (modified . "2026-01-02T03:04:05Z")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (goto-char (point-min))
+    (should (search-forward "2026-01-02 alpha" nil t))
+    (let ((heading-start (match-beginning 0)))
+      (should (equal (get-text-property heading-start 'neft-path)
+                     "/tmp/a.org"))
+      (should (get-text-property heading-start 'neft-file-heading)))))
+
 (ert-deftest neft-echoes-file-path-at-result-point ()
   (with-temp-buffer
     (neft-mode)
@@ -220,7 +255,7 @@
           (neft--process-filter process "\"}")
           (should (equal (process-get process 'neft-output)
                          "{\"query\":\"\"}"))
-          (should (equal (buffer-string) "Search: \n\n")))
+          (should (equal (buffer-string) "Search[i]: \n\n")))
       (when (process-live-p process)
         (delete-process process)))))
 
@@ -339,10 +374,34 @@
     (goto-char (+ (marker-position neft--query-start) 2))
     (neft-kill-line)
     (should (equal neft--query "ab"))
-    (should (string-match-p "\\`Search: ab\n\nalpha" (buffer-string)))
+    (should (string-match-p "\\`Search\\[i\\]: ab\n\nalpha" (buffer-string)))
     (when neft--timer
       (cancel-timer neft--timer)
       (setq neft--timer nil))))
+
+(ert-deftest neft-toggle-case-sensitivity-updates-query-label-and-refreshes ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "needle")
+    (neft--render-results
+     '((query . "needle")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 1)
+                  (snippets . nil))))))
+    (let ((refreshes 0))
+      (cl-letf (((symbol-function 'neft-refresh)
+                 (lambda () (cl-incf refreshes)))
+                ((symbol-function 'message)
+                 (lambda (&rest _args) nil)))
+        (neft-toggle-case-sensitivity)
+        (should neft-case-sensitive)
+        (should (= refreshes 1))
+        (should (string-match-p "\\`Search\\[S\\]: needle" (buffer-string)))
+        (neft-toggle-case-sensitivity)
+        (should-not neft-case-sensitive)
+        (should (= refreshes 2))
+        (should (string-match-p "\\`Search\\[i\\]: needle" (buffer-string)))))))
 
 (ert-deftest neft-file-navigation-moves-forward-by-file ()
   (with-temp-buffer

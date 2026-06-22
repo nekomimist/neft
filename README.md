@@ -11,11 +11,13 @@ search and migemo expansion.
 - Read-only result area, with editing limited to the query text.
 - Query-row editing commands keep the prompt and result separator intact.
 - `C-<down>` and `C-<up>` move between file results.
-- Result headings show note titles only; moving point over a result shows its
-  file path in the echo area.
+- `C-c C-s` toggles case-sensitive searching.
+- Result headings show modified dates and note titles; moving point over a
+  result shows its file path in the echo area.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.
+- Case-insensitive search by default, with an optional sensitive mode.
 - Japanese migemo search handled by the external executable.
 - Real-time result updates and match highlighting.
 - Compact snippets when many files match, richer snippets when results narrow.
@@ -46,6 +48,7 @@ Run `M-x neft`.
 - `neft-directories`: roots or files to search.
 - `neft-file-extensions`: file extensions to search.
 - `neft-recursive`: search child directories.
+- `neft-case-sensitive`: match case sensitively by default.
 - `neft-many-results-threshold`: switch point for compact snippets.
 - `neft-snippets-when-many`: snippets per file for broad matches.
 - `neft-snippets-when-few`: snippets per file for narrow matches.
@@ -59,7 +62,7 @@ Run `M-x neft`.
 The executable can be used directly:
 
 ```sh
-neft search --query "kensaku memo" --root ~/notes --extension org --format json
+neft search --query "kensaku memo" --root ~/notes --extension org --case-sensitive=false --format json
 ```
 
 The output is JSON containing matched files, snippet lines, line numbers, and

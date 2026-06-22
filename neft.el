@@ -41,6 +41,12 @@ Extensions may be written with or without a leading dot."
   :type 'boolean
   :group 'neft)
 
+(defcustom neft-case-sensitive nil
+  "Whether `neft' matches case sensitively."
+  :type 'boolean
+  :group 'neft)
+(make-variable-buffer-local 'neft-case-sensitive)
+
 (defcustom neft-program "neft"
   "Path to the neft executable."
   :type 'file
@@ -91,6 +97,11 @@ Extensions may be written with or without a leading dot."
   "Face for file paths."
   :group 'neft)
 
+(defface neft-date-face
+  '((t :inherit shadow))
+  "Face for file modified dates."
+  :group 'neft)
+
 (defface neft-match-face
   '((t :inherit isearch))
   "Face for highlighted matches."
@@ -115,6 +126,7 @@ Extensions may be written with or without a leading dot."
     (define-key map (kbd "g") #'neft-refresh-or-insert)
     (define-key map (kbd "q") #'neft-quit-or-insert)
     (define-key map (kbd "C-c C-k") #'neft-clear-query)
+    (define-key map (kbd "C-c C-s") #'neft-toggle-case-sensitivity)
     (define-key map [remap move-beginning-of-line] #'neft-move-beginning-of-line)
     (define-key map [remap kill-line] #'neft-kill-line)
     (define-key map [remap forward-paragraph] #'neft-next-file)
@@ -206,6 +218,17 @@ Extensions may be written with or without a leading dot."
     (setq neft--query ""
           neft--query-end (copy-marker neft--query-start t))
     (neft--schedule-search)))
+
+(defun neft-toggle-case-sensitivity ()
+  "Toggle case-sensitive searching in the current neft buffer."
+  (interactive)
+  (setq neft-case-sensitive (not neft-case-sensitive))
+  (if neft--results
+      (neft--render-results neft--results)
+    (neft--render-empty))
+  (neft-refresh)
+  (message "neft case %s"
+           (if neft-case-sensitive "sensitive" "insensitive")))
 
 (defun neft-open-result ()
   "Open the result at point."
@@ -371,6 +394,7 @@ Extensions may be written with or without a leading dot."
          (format "--query=%s" query)
          "--format" "json"
          (format "--recursive=%s" (if neft-recursive "true" "false"))
+         (format "--case-sensitive=%s" (if neft-case-sensitive "true" "false"))
          "--many-threshold" (number-to-string neft-many-results-threshold)
          "--snippets-when-many" (number-to-string neft-snippets-when-many)
          "--snippets-when-few" (number-to-string neft-snippets-when-few))
@@ -395,7 +419,7 @@ Extensions may be written with or without a leading dot."
   (let ((inhibit-read-only t)
         (inhibit-modification-hooks t))
     (erase-buffer)
-    (insert (propertize "Search: "
+    (insert (propertize (neft--query-label)
                         'face 'neft-query-face
                         'read-only t
                         'front-sticky '(read-only)
@@ -404,6 +428,9 @@ Extensions may be written with or without a leading dot."
     (insert neft--query)
     (setq neft--query-end (copy-marker (point)))
     (insert "\n\n")))
+
+(defun neft--query-label ()
+  (format "Search[%s]: " (if neft-case-sensitive "S" "i")))
 
 (defun neft--render-results (result)
   (let ((query neft--query)
@@ -442,9 +469,12 @@ Extensions may be written with or without a leading dot."
 (defun neft--insert-file (file)
   (let ((path (alist-get 'path file))
         (title (alist-get 'title file))
+        (modified (alist-get 'modified file))
         (match-count (alist-get 'match_count file))
         (snippets (alist-get 'snippets file)))
     (let ((start (point)))
+      (when-let* ((date (neft--format-modified-date modified)))
+        (insert (propertize date 'face 'neft-date-face) " "))
       (insert (propertize title 'face 'neft-file-face))
       (when (and match-count (> match-count 0))
         (insert (format " (%s)" match-count)))
@@ -458,6 +488,12 @@ Extensions may be written with or without a leading dot."
           (neft--insert-snippet path snippet))
       nil)
     (insert "\n")))
+
+(defun neft--format-modified-date (modified)
+  (when (and (stringp modified) (not (string-empty-p modified)))
+    (condition-case nil
+        (format-time-string "%Y-%m-%d" (date-to-time modified))
+      (error nil))))
 
 (defun neft--insert-snippet (path snippet)
   (let* ((line (alist-get 'line snippet))
