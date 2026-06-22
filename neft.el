@@ -71,6 +71,11 @@ Extensions may be written with or without a leading dot."
   :type 'boolean
   :group 'neft)
 
+(defcustom neft-show-file-path-in-echo-area t
+  "Whether point movement over results shows the file path in the echo area."
+  :type 'boolean
+  :group 'neft)
+
 (defface neft-query-face
   '((t :inherit minibuffer-prompt))
   "Face for the query label."
@@ -100,6 +105,7 @@ Extensions may be written with or without a leading dot."
 (defvar-local neft--query-end nil)
 (defvar-local neft--window-configuration nil)
 (defvar-local neft--window-frame nil)
+(defvar-local neft--echo-path nil)
 
 (defvar neft-mode-map
   (let ((map (make-sparse-keymap)))
@@ -124,6 +130,7 @@ Extensions may be written with or without a leading dot."
   (setq-local completion-at-point-functions nil)
   (neft--disable-completion-preview)
   (add-hook 'after-change-functions #'neft--after-change nil t)
+  (add-hook 'post-command-hook #'neft--echo-path-at-point nil t)
   (add-hook 'kill-buffer-hook #'neft--restore-window-configuration nil t))
 
 (defun neft--disable-completion-preview ()
@@ -240,6 +247,16 @@ Extensions may be written with or without a leading dot."
   (interactive)
   (when-let* ((position (neft--previous-file-heading-position)))
     (goto-char position)))
+
+(defun neft--echo-path-at-point ()
+  (let ((path (and neft-show-file-path-in-echo-area
+                   (not (neft--in-query-p))
+                   (get-text-property (point) 'neft-path))))
+    (if (not path)
+        (setq neft--echo-path nil)
+      (unless (equal path neft--echo-path)
+        (setq neft--echo-path path)
+        (message "%s" path)))))
 
 (defun neft--in-query-p (&optional position)
   (let ((position (or position (point))))
@@ -433,9 +450,9 @@ Extensions may be written with or without a leading dot."
         (insert (format " (%s)" match-count)))
       (add-text-properties start (point) `(neft-path ,path
                                                      neft-line 1
-                                                     neft-file-heading t))
+                                                     neft-file-heading t
+                                                     help-echo ,path))
       (insert "\n"))
-    (insert (propertize path 'face 'neft-path-face) "\n")
     (if snippets
         (dolist (snippet snippets)
           (neft--insert-snippet path snippet))

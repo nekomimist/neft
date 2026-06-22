@@ -125,11 +125,77 @@
                   (match_count . 0)
                   (snippets . nil))))))
     (should (string-match-p
-             "alpha\n/tmp/a.org\n\nbeta"
+             "alpha\n\nbeta"
              (buffer-string)))
     (should-not (string-match-p
-                 "alpha\n/tmp/a.org\n\n\nbeta"
+                 "alpha\n\n\nbeta"
                  (buffer-string)))))
+
+(ert-deftest neft-render-results-hides-file-path-in-help-echo ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (goto-char (point-min))
+    (should (search-forward "alpha" nil t))
+    (let ((title-start (match-beginning 0)))
+      (should (equal (get-text-property title-start 'help-echo)
+                     "/tmp/a.org"))
+      (should (equal (get-text-property title-start 'neft-path)
+                     "/tmp/a.org")))
+    (should-not (search-forward "/tmp/a.org" nil t))))
+
+(ert-deftest neft-echoes-file-path-at-result-point ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (let (messages)
+      (cl-letf (((symbol-function 'message)
+                 (lambda (format-string &rest args)
+                   (push (apply #'format format-string args) messages))))
+        (goto-char (point-min))
+        (search-forward "alpha")
+        (goto-char (match-beginning 0))
+        (neft--echo-path-at-point)
+        (should (equal messages '("/tmp/a.org")))
+        (neft--echo-path-at-point)
+        (should (equal messages '("/tmp/a.org")))
+        (goto-char (marker-position neft--query-start))
+        (neft--echo-path-at-point)
+        (should (null neft--echo-path))))))
+
+(ert-deftest neft-echo-path-at-point-respects-user-option ()
+  (let ((neft-show-file-path-in-echo-area nil))
+    (with-temp-buffer
+      (neft-mode)
+      (setq neft--query "")
+      (neft--render-results
+       '((query . "")
+         (files . (((path . "/tmp/a.org")
+                    (title . "alpha")
+                    (match_count . 0)
+                    (snippets . nil))))))
+      (let (messages)
+        (cl-letf (((symbol-function 'message)
+                   (lambda (format-string &rest args)
+                     (push (apply #'format format-string args) messages))))
+          (goto-char (point-min))
+          (search-forward "alpha")
+          (goto-char (match-beginning 0))
+          (neft--echo-path-at-point)
+          (should (null messages))
+          (should (null neft--echo-path)))))))
 
 (ert-deftest neft-handle-output-keeps-results-in-neft-buffer ()
   (with-temp-buffer

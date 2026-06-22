@@ -13,3 +13,7 @@
 - Prevent `kill-line` on an empty query from briefly deleting the search row
   newline.
 - Add `C-<down>` and `C-<up>` file-result navigation.
+- Show only note titles in result headings, with file paths available through
+  hover help.
+- Show result file paths in the echo area when point moves over a result,
+  independent of global idle help settings.

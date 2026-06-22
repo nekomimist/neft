@@ -11,6 +11,8 @@ search and migemo expansion.
 - Read-only result area, with editing limited to the query text.
 - Query-row editing commands keep the prompt and result separator intact.
 - `C-<down>` and `C-<up>` move between file results.
+- Result headings show note titles only; moving point over a result shows its
+  file path in the echo area.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.
@@ -49,6 +51,8 @@ Run `M-x neft`.
 - `neft-snippets-when-few`: snippets per file for narrow matches.
 - `neft-restore-window-configuration`: restore the previous window layout when
   quitting or killing the neft buffer.
+- `neft-show-file-path-in-echo-area`: show the file path in the echo area when
+  point moves over a result.
 
 ## CLI
 
