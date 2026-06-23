@@ -23,7 +23,9 @@ dedicated text properties for navigation.  File paths stay out of the visible
 result list and are exposed through `help-echo` for standard hover help.
 `neft-mode` also uses a buffer-local `post-command-hook` to show the file path
 in the echo area when point moves over a result, so path visibility does not
-depend on global idle help settings.
+depend on global idle help settings.  File-result spacing is controlled by the
+Emacs UI; `neft-compact-result-spacing` omits the blank line between file
+results without changing snippets within a file.
 `forward-paragraph` and `backward-paragraph`, commonly bound to `C-<down>` and
 `C-<up>`, are remapped to move by file result instead of by visual paragraph.
 

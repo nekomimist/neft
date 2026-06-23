@@ -20,3 +20,4 @@
 - Match case-insensitively by default, with `C-c C-s` and `--case-sensitive`
   for sensitive searches.
 - Prefix result headings with each file's modified date.
+- Add `neft-compact-result-spacing` to omit blank lines between file results.

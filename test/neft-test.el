@@ -148,6 +148,58 @@
                  "alpha\n\n\nbeta"
                  (buffer-string)))))
 
+(ert-deftest neft-render-results-can-omit-blank-lines-between-files ()
+  (let ((neft-compact-result-spacing t))
+    (with-temp-buffer
+      (neft-mode)
+      (setq neft--query "")
+      (neft--render-results
+       '((query . "")
+         (files . (((path . "/tmp/a.org")
+                    (title . "alpha")
+                    (match_count . 0)
+                    (snippets . nil))
+                   ((path . "/tmp/b.org")
+                    (title . "beta")
+                    (match_count . 0)
+                    (snippets . nil))))))
+      (should (string-match-p
+               "alpha\nbeta"
+               (buffer-string)))
+      (should-not (string-match-p
+                   "alpha\n\nbeta"
+                   (buffer-string))))))
+
+(ert-deftest neft-render-results-compact-spacing-keeps-snippets-adjacent ()
+  (let ((neft-compact-result-spacing t))
+    (with-temp-buffer
+      (neft-mode)
+      (setq neft--query "needle")
+      (neft--render-results
+       '((query . "needle")
+         (files . (((path . "/tmp/a.org")
+                    (title . "alpha")
+                    (match_count . 2)
+                    (snippets . (((line . 1)
+                                  (text . "first needle")
+                                  (matches . (((start . 6) (end . 12)))))
+                                 ((line . 2)
+                                  (text . "second needle")
+                                  (matches . (((start . 7) (end . 13))))))))
+                   ((path . "/tmp/b.org")
+                    (title . "beta")
+                    (match_count . 1)
+                    (snippets . nil))))))
+      (should (string-match-p
+               "first needle\n    2: second needle\nbeta"
+               (buffer-string)))
+      (should-not (string-match-p
+                   "second needle\n\nbeta"
+                   (buffer-string)))
+      (should-not (string-match-p
+                   "first needle\n\n    2: second needle"
+                   (buffer-string))))))
+
 (ert-deftest neft-render-results-hides-file-path-in-help-echo ()
   (with-temp-buffer
     (neft-mode)

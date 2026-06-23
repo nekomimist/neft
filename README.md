@@ -56,6 +56,7 @@ Run `M-x neft`.
   quitting or killing the neft buffer.
 - `neft-show-file-path-in-echo-area`: show the file path in the echo area when
   point moves over a result.
+- `neft-compact-result-spacing`: omit blank lines between file results.
 
 ## CLI
 

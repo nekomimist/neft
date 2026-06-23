@@ -82,6 +82,11 @@ Extensions may be written with or without a leading dot."
   :type 'boolean
   :group 'neft)
 
+(defcustom neft-compact-result-spacing nil
+  "Whether `neft' omits blank lines between file results."
+  :type 'boolean
+  :group 'neft)
+
 (defface neft-query-face
   '((t :inherit minibuffer-prompt))
   "Face for the query label."
@@ -487,7 +492,8 @@ Extensions may be written with or without a leading dot."
         (dolist (snippet snippets)
           (neft--insert-snippet path snippet))
       nil)
-    (insert "\n")))
+    (unless neft-compact-result-spacing
+      (insert "\n"))))
 
 (defun neft--format-modified-date (modified)
   (when (and (stringp modified) (not (string-empty-p modified)))
