@@ -14,6 +14,7 @@
                    '("search" "--query=foo bar" "--format" "json"
                      "--recursive=true"
                      "--case-sensitive=false"
+                     "--use-org-title=true"
                      "--many-threshold" "12"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "4"
@@ -28,6 +29,7 @@
                    '("search" "--query=" "--format" "json"
                      "--recursive=true"
                      "--case-sensitive=false"
+                     "--use-org-title=true"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"
@@ -41,6 +43,7 @@
                    '("search" "--query=memo" "--format" "json"
                      "--recursive=true"
                      "--case-sensitive=false"
+                     "--use-org-title=true"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"
@@ -56,6 +59,22 @@
                    '("search" "--query=memo" "--format" "json"
                      "--recursive=true"
                      "--case-sensitive=true"
+                     "--use-org-title=true"
+                     "--many-threshold" "50"
+                     "--snippets-when-many" "1"
+                     "--snippets-when-few" "5"
+                     "--extension" "org"
+                     "--root" "/tmp/a")))))
+
+(ert-deftest neft-process-args-include-org-title-mode ()
+  (let ((neft-directories '("/tmp/a"))
+        (neft-file-extensions '("org"))
+        (neft-use-org-title nil))
+    (should (equal (neft--process-args "memo")
+                   '("search" "--query=memo" "--format" "json"
+                     "--recursive=true"
+                     "--case-sensitive=false"
+                     "--use-org-title=false"
                      "--many-threshold" "50"
                      "--snippets-when-many" "1"
                      "--snippets-when-few" "5"

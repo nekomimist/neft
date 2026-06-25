@@ -44,13 +44,20 @@ roots for files with configured extensions.
 Emacs calls:
 
 ```sh
-neft search --query QUERY --root DIR --extension EXT --case-sensitive BOOL --format json
+neft search --query QUERY --root DIR --extension EXT --case-sensitive BOOL --use-org-title BOOL --format json
 ```
 
 Multiple `--root` and `--extension` flags are accepted.  When no extension is
 specified, the CLI searches `org` files.  JSON results include file path,
 display title, modified time, total matching line count, snippet lines, line
 numbers, and character ranges for highlighting.
+
+Display titles prefer the first non-empty `#+title:` metadata line by default.
+The metadata keyword is matched case-insensitively with leading whitespace
+allowed, and the value preserves case and punctuation after trimming surrounding
+whitespace.  When `--use-org-title=false` is specified, or no title metadata is
+present, titles are derived from filenames using the Denote-style suffix after
+`--` with hyphens rendered as spaces.
 
 Queries are split on whitespace.  Every term must match the same line for that
 line to become a snippet.  Matching is case-insensitive by default and can be

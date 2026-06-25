@@ -41,6 +41,124 @@ func TestRunSearchesRecursiveOrgFilesWithMigemoAndANDTerms(t *testing.T) {
 	}
 }
 
+func TestRunPrefersOrgTitleMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__tag.org"), "#+title: Mixed CASE: A+B!\nneedle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "Mixed CASE: A+B!" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunRecognizesOrgTitleCaseInsensitivelyWithLeadingWhitespace(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), "  #+TITLE: Upper Title\nneedle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "Upper Title" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunFallsBackToFilenameWhenOrgTitleIsMissingOrBlank(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), "#+title:   \nneedle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "alpha note" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunCanUseFilenameTitleMode(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), "#+title: Org Title\nneedle\n")
+
+	result, err := Run(Options{
+		Query:       "needle",
+		Roots:       []string{root},
+		Recursive:   true,
+		TitleSource: TitleSourceFilename,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "alpha note" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunEmptyQueryUsesOrgTitleMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), "#+title: Recent Title\n")
+
+	result, err := Run(Options{Roots: []string{root}, Recursive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "Recent Title" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunUsesOrgTitleForConfiguredTextExtensions(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "plain.txt"), "#+title: Plain Text Title\nneedle\n")
+
+	result, err := Run(Options{
+		Query:      "needle",
+		Roots:      []string{root},
+		Extensions: []string{"txt"},
+		Recursive:  true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if result.Files[0].Title != "Plain Text Title" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
 func TestRunPreservesSnippetLeadingWhitespace(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "indented.org"), "  needle\n")

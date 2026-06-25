@@ -22,10 +22,18 @@ type Options struct {
 	Extensions       []string
 	Recursive        bool
 	CaseSensitive    bool
+	TitleSource      TitleSource
 	ManyThreshold    int
 	SnippetsWhenMany int
 	SnippetsWhenFew  int
 }
+
+type TitleSource int
+
+const (
+	TitleSourceOrgTitle TitleSource = iota
+	TitleSourceFilename
+)
 
 type Result struct {
 	Query string      `json:"query"`
@@ -70,6 +78,9 @@ func Run(opts Options) (Result, error) {
 		return Result{}, err
 	}
 	if strings.TrimSpace(opts.Query) == "" {
+		if opts.TitleSource == TitleSourceOrgTitle {
+			candidates = readCandidateTitles(candidates)
+		}
 		return Result{Query: opts.Query, Files: recentFiles(candidates)}, nil
 	}
 
@@ -79,7 +90,7 @@ func Run(opts Options) (Result, error) {
 	}
 	scans := make([]fileScan, 0)
 	for _, c := range candidates {
-		scan, err := scanFile(c, matchers, opts.SnippetsWhenFew)
+		scan, err := scanFile(c, matchers, opts.SnippetsWhenFew, opts.TitleSource)
 		if err != nil {
 			continue
 		}
@@ -287,7 +298,7 @@ func compileMatchers(query string, caseSensitive bool) ([]*regexp.Regexp, error)
 	return matchers, nil
 }
 
-func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int) (fileScan, error) {
+func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int, titleSource TitleSource) (fileScan, error) {
 	file, err := os.Open(c.path)
 	if err != nil {
 		return fileScan{}, err
@@ -299,9 +310,17 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int) (fileScan
 	lineNumber := 0
 	count := 0
 	var snippets []LineSnippet
+	title := c.title
+	foundTitle := false
 	for scanner.Scan() {
 		lineNumber++
 		text := scanner.Text()
+		if titleSource == TitleSourceOrgTitle && !foundTitle {
+			if orgTitle, ok := orgTitleFromLine(text); ok {
+				title = orgTitle
+				foundTitle = true
+			}
+		}
 		ranges, ok := matchLine(text, matchers)
 		if !ok {
 			continue
@@ -318,7 +337,34 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int) (fileScan
 	if err := scanner.Err(); err != nil {
 		return fileScan{}, err
 	}
+	c.title = title
 	return fileScan{candidate: c, snippets: snippets, count: count}, nil
+}
+
+func readCandidateTitles(candidates []candidate) []candidate {
+	for i := range candidates {
+		if title, ok := readOrgTitle(candidates[i].path); ok {
+			candidates[i].title = title
+		}
+	}
+	return candidates
+}
+
+func readOrgTitle(path string) (string, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 1024), 1024*1024)
+	for scanner.Scan() {
+		if title, ok := orgTitleFromLine(scanner.Text()); ok {
+			return title, true
+		}
+	}
+	return "", false
 }
 
 func matchLine(text string, matchers []*regexp.Regexp) ([]Range, bool) {
@@ -349,4 +395,16 @@ func displayTitle(path string) string {
 		return strings.ReplaceAll(parts[1], "-", " ")
 	}
 	return base
+}
+
+func orgTitleFromLine(line string) (string, bool) {
+	trimmed := strings.TrimLeft(line, " \t")
+	if !strings.HasPrefix(strings.ToLower(trimmed), "#+title:") {
+		return "", false
+	}
+	title := strings.TrimSpace(trimmed[len("#+title:"):])
+	if title == "" {
+		return "", false
+	}
+	return title, true
 }

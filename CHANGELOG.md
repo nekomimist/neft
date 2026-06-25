@@ -21,3 +21,6 @@
   for sensitive searches.
 - Prefix result headings with each file's modified date.
 - Add `neft-compact-result-spacing` to omit blank lines between file results.
+- Prefer `#+title:` metadata for result headings by default, with
+  `neft-use-org-title` and `--use-org-title=false` to restore filename-derived
+  titles.

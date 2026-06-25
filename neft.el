@@ -47,6 +47,11 @@ Extensions may be written with or without a leading dot."
   :group 'neft)
 (make-variable-buffer-local 'neft-case-sensitive)
 
+(defcustom neft-use-org-title t
+  "Whether `neft' prefers #+title metadata over filename-derived titles."
+  :type 'boolean
+  :group 'neft)
+
 (defcustom neft-program "neft"
   "Path to the neft executable."
   :type 'file
@@ -400,6 +405,7 @@ Extensions may be written with or without a leading dot."
          "--format" "json"
          (format "--recursive=%s" (if neft-recursive "true" "false"))
          (format "--case-sensitive=%s" (if neft-case-sensitive "true" "false"))
+         (format "--use-org-title=%s" (if neft-use-org-title "true" "false"))
          "--many-threshold" (number-to-string neft-many-results-threshold)
          "--snippets-when-many" (number-to-string neft-snippets-when-many)
          "--snippets-when-few" (number-to-string neft-snippets-when-few))
