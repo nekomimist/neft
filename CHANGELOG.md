@@ -24,3 +24,5 @@
 - Prefer `#+title:` metadata for result headings by default, with
   `neft-use-org-title` and `--use-org-title=false` to restore filename-derived
   titles.
+- Show note tags in result headings, prefer `#+filetags:` over Denote filename
+  tags, and support `:tag:` filters mixed with text search terms.

@@ -112,6 +112,11 @@ Extensions may be written with or without a leading dot."
   "Face for file modified dates."
   :group 'neft)
 
+(defface neft-tag-face
+  '((t :inherit secondary-selection :height 0.85))
+  "Face for note tags in file result headers."
+  :group 'neft)
+
 (defface neft-match-face
   '((t :inherit isearch))
   "Face for highlighted matches."
@@ -480,6 +485,7 @@ Extensions may be written with or without a leading dot."
 (defun neft--insert-file (file)
   (let ((path (alist-get 'path file))
         (title (alist-get 'title file))
+        (tags (alist-get 'tags file))
         (modified (alist-get 'modified file))
         (match-count (alist-get 'match_count file))
         (snippets (alist-get 'snippets file)))
@@ -487,6 +493,7 @@ Extensions may be written with or without a leading dot."
       (when-let* ((date (neft--format-modified-date modified)))
         (insert (propertize date 'face 'neft-date-face) " "))
       (insert (propertize title 'face 'neft-file-face))
+      (neft--insert-tags tags)
       (when (and match-count (> match-count 0))
         (insert (format " (%s)" match-count)))
       (add-text-properties start (point) `(neft-path ,path
@@ -500,6 +507,11 @@ Extensions may be written with or without a leading dot."
       nil)
     (unless neft-compact-result-spacing
       (insert "\n"))))
+
+(defun neft--insert-tags (tags)
+  (dolist (tag tags)
+    (when (and (stringp tag) (not (string-empty-p tag)))
+      (insert " " (propertize tag 'face 'neft-tag-face)))))
 
 (defun neft--format-modified-date (modified)
   (when (and (stringp modified) (not (string-empty-p modified)))

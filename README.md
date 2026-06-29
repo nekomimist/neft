@@ -12,12 +12,14 @@ search and migemo expansion.
 - Query-row editing commands keep the prompt and result separator intact.
 - `C-<down>` and `C-<up>` move between file results.
 - `C-c C-s` toggles case-sensitive searching.
-- Result headings show modified dates and note titles, preferring `#+title:`
-  metadata by default; moving point over a result shows its file path in the
-  echo area.
+- Result headings show modified dates, note titles, and tags, preferring
+  `#+title:` and `#+filetags:` metadata by default; moving point over a result
+  shows its file path in the echo area.
 - Multiple search roots via `neft-directories`.
 - Recursive `.org` search by default, with configurable file extensions.
 - Space-separated AND terms.
+- Tag filters with `:tag:` syntax, including mixed text-and-tag searches such
+  as `needle :work:`.
 - Case-insensitive search by default, with an optional sensitive mode.
 - Japanese migemo search handled by the external executable.
 - Real-time result updates and match highlighting.
@@ -69,8 +71,15 @@ The executable can be used directly:
 neft search --query "kensaku memo" --root ~/notes --extension org --case-sensitive=false --use-org-title=true --format json
 ```
 
-The output is JSON containing matched files, snippet lines, line numbers, and
-match ranges.
+The output is JSON containing matched files, tags, snippet lines, line numbers,
+and match ranges.
+
+Search queries are split on whitespace.  A token like `:tag1:tag2:` filters
+files to notes that have all listed tags, case-insensitively.  Text terms and
+tag filters can be mixed, so `needle :work:` matches notes tagged `work` that
+also contain `needle`.  To search for a literal tag-looking string in text,
+escape it with a backslash, for example `\:work:`; use `\\:work:` to search for
+a literal `\:work:`.
 
 ## License
 

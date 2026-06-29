@@ -43,6 +43,7 @@ type Result struct {
 type FileMatch struct {
 	Path       string        `json:"path"`
 	Title      string        `json:"title"`
+	Tags       []string      `json:"tags"`
 	Modified   time.Time     `json:"modified"`
 	MatchCount int           `json:"match_count"`
 	Snippets   []LineSnippet `json:"snippets"`
@@ -62,6 +63,7 @@ type Range struct {
 type candidate struct {
 	path     string
 	title    string
+	tags     []string
 	modified time.Time
 }
 
@@ -77,19 +79,31 @@ func Run(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	if strings.TrimSpace(opts.Query) == "" {
-		if opts.TitleSource == TitleSourceOrgTitle {
-			candidates = readCandidateTitles(candidates)
-		}
+	query := parseQuery(opts.Query)
+	if query.empty() {
+		candidates = readCandidateMetadata(candidates, opts.TitleSource)
 		return Result{Query: opts.Query, Files: recentFiles(candidates)}, nil
 	}
 
-	matchers, err := compileMatchers(opts.Query, opts.CaseSensitive)
-	if err != nil {
-		return Result{}, err
+	var matchers []*regexp.Regexp
+	if len(query.textTerms) > 0 {
+		matchers, err = compileMatchers(query.textTerms, opts.CaseSensitive)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	scans := make([]fileScan, 0)
 	for _, c := range candidates {
+		if len(query.tagTerms) > 0 {
+			c = readCandidateMetadataForCandidate(c, opts.TitleSource)
+			if !matchesTags(c.tags, query.tagTerms) {
+				continue
+			}
+		}
+		if len(matchers) == 0 {
+			scans = append(scans, fileScan{candidate: c})
+			continue
+		}
 		scan, err := scanFile(c, matchers, opts.SnippetsWhenFew, opts.TitleSource)
 		if err != nil {
 			continue
@@ -118,6 +132,7 @@ func Run(opts Options) (Result, error) {
 		files = append(files, FileMatch{
 			Path:       scan.path,
 			Title:      scan.title,
+			Tags:       scan.tags,
 			Modified:   scan.modified,
 			MatchCount: scan.count,
 			Snippets:   snippets,
@@ -250,6 +265,7 @@ func appendCandidate(candidates []candidate, seen map[string]bool, path string, 
 	return append(candidates, candidate{
 		path:     abs,
 		title:    displayTitle(abs),
+		tags:     displayTags(abs),
 		modified: info.ModTime(),
 	})
 }
@@ -266,14 +282,14 @@ func recentFiles(candidates []candidate) []FileMatch {
 		files = append(files, FileMatch{
 			Path:     c.path,
 			Title:    c.title,
+			Tags:     c.tags,
 			Modified: c.modified,
 		})
 	}
 	return files
 }
 
-func compileMatchers(query string, caseSensitive bool) ([]*regexp.Regexp, error) {
-	terms := strings.Fields(query)
+func compileMatchers(terms []string, caseSensitive bool) ([]*regexp.Regexp, error) {
 	if len(terms) == 0 {
 		return nil, errors.New("query has no terms")
 	}
@@ -311,7 +327,9 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int, titleSour
 	count := 0
 	var snippets []LineSnippet
 	title := c.title
+	tags := c.tags
 	foundTitle := false
+	foundFileTags := false
 	for scanner.Scan() {
 		lineNumber++
 		text := scanner.Text()
@@ -319,6 +337,12 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int, titleSour
 			if orgTitle, ok := orgTitleFromLine(text); ok {
 				title = orgTitle
 				foundTitle = true
+			}
+		}
+		if !foundFileTags {
+			if fileTags, ok := orgFileTagsFromLine(text); ok {
+				tags = fileTags
+				foundFileTags = true
 			}
 		}
 		ranges, ok := matchLine(text, matchers)
@@ -338,33 +362,47 @@ func scanFile(c candidate, matchers []*regexp.Regexp, maxSnippets int, titleSour
 		return fileScan{}, err
 	}
 	c.title = title
+	c.tags = tags
 	return fileScan{candidate: c, snippets: snippets, count: count}, nil
 }
 
-func readCandidateTitles(candidates []candidate) []candidate {
+func readCandidateMetadata(candidates []candidate, titleSource TitleSource) []candidate {
 	for i := range candidates {
-		if title, ok := readOrgTitle(candidates[i].path); ok {
-			candidates[i].title = title
-		}
+		candidates[i] = readCandidateMetadataForCandidate(candidates[i], titleSource)
 	}
 	return candidates
 }
 
-func readOrgTitle(path string) (string, bool) {
-	file, err := os.Open(path)
+func readCandidateMetadataForCandidate(c candidate, titleSource TitleSource) candidate {
+	file, err := os.Open(c.path)
 	if err != nil {
-		return "", false
+		return c
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 1024), 1024*1024)
+	foundTitle := false
+	foundFileTags := false
 	for scanner.Scan() {
-		if title, ok := orgTitleFromLine(scanner.Text()); ok {
-			return title, true
+		text := scanner.Text()
+		if titleSource == TitleSourceOrgTitle && !foundTitle {
+			if title, ok := orgTitleFromLine(text); ok {
+				c.title = title
+				foundTitle = true
+			}
+		}
+		if !foundFileTags {
+			if tags, ok := orgFileTagsFromLine(text); ok {
+				c.tags = tags
+				foundFileTags = true
+			}
+		}
+		if (titleSource == TitleSourceFilename || foundTitle) && foundFileTags {
+			break
 		}
 	}
-	return "", false
+	return c
 }
 
 func matchLine(text string, matchers []*regexp.Regexp) ([]Range, bool) {
@@ -389,12 +427,26 @@ func matchLine(text string, matchers []*regexp.Regexp) ([]Range, bool) {
 }
 
 func displayTitle(path string) string {
+	titlePart, _ := displayMetadata(path)
+	return strings.ReplaceAll(titlePart, "-", " ")
+}
+
+func displayTags(path string) []string {
+	_, tags := displayMetadata(path)
+	return tags
+}
+
+func displayMetadata(path string) (string, []string) {
 	base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	parts := strings.Split(base, "--")
+	titlePart := base
 	if len(parts) > 1 && parts[1] != "" {
-		return strings.ReplaceAll(parts[1], "-", " ")
+		titlePart = parts[1]
 	}
-	return base
+	if before, after, ok := strings.Cut(titlePart, "__"); ok {
+		return before, uniqueTags(strings.Split(after, "_"))
+	}
+	return titlePart, nil
 }
 
 func orgTitleFromLine(line string) (string, bool) {
@@ -407,4 +459,96 @@ func orgTitleFromLine(line string) (string, bool) {
 		return "", false
 	}
 	return title, true
+}
+
+func orgFileTagsFromLine(line string) ([]string, bool) {
+	trimmed := strings.TrimLeft(line, " \t")
+	if !strings.HasPrefix(strings.ToLower(trimmed), "#+filetags:") {
+		return nil, false
+	}
+	value := strings.TrimSpace(trimmed[len("#+filetags:"):])
+	tags, ok := parseColonTags(value)
+	if !ok {
+		return nil, false
+	}
+	return tags, true
+}
+
+type parsedQuery struct {
+	textTerms []string
+	tagTerms  []string
+}
+
+func (q parsedQuery) empty() bool {
+	return len(q.textTerms) == 0 && len(q.tagTerms) == 0
+}
+
+func parseQuery(query string) parsedQuery {
+	var parsed parsedQuery
+	for _, field := range strings.Fields(query) {
+		if tags, ok := parseColonTags(field); ok && !strings.HasPrefix(field, `\`) {
+			parsed.tagTerms = append(parsed.tagTerms, tags...)
+			continue
+		}
+		parsed.textTerms = append(parsed.textTerms, unescapeQueryTerm(field))
+	}
+	parsed.tagTerms = uniqueTags(parsed.tagTerms)
+	return parsed
+}
+
+func parseColonTags(value string) ([]string, bool) {
+	if len(value) < 3 || !strings.HasPrefix(value, ":") || !strings.HasSuffix(value, ":") {
+		return nil, false
+	}
+	rawTags := strings.Split(strings.Trim(value, ":"), ":")
+	tags := uniqueTags(rawTags)
+	if len(tags) == 0 {
+		return nil, false
+	}
+	return tags, true
+}
+
+func uniqueTags(tags []string) []string {
+	seen := map[string]bool{}
+	unique := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		key := strings.ToLower(tag)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		unique = append(unique, tag)
+	}
+	return unique
+}
+
+func unescapeQueryTerm(term string) string {
+	var builder strings.Builder
+	for i := 0; i < len(term); i++ {
+		if term[i] == '\\' && i+1 < len(term) && (term[i+1] == ':' || term[i+1] == '\\') {
+			i++
+		}
+		builder.WriteByte(term[i])
+	}
+	return builder.String()
+}
+
+func matchesTags(fileTags []string, queryTags []string) bool {
+	if len(queryTags) == 0 {
+		return true
+	}
+	fileTagSet := map[string]bool{}
+	for _, tag := range fileTags {
+		fileTagSet[strings.ToLower(tag)] = true
+	}
+	for _, tag := range queryTags {
+		if !fileTagSet[strings.ToLower(tag)] {
+			return false
+		}
+	}
+	return true
 }

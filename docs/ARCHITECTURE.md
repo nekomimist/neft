@@ -18,14 +18,14 @@ normal editing commands cannot insert text outside the query marker range.
 Query-row commands that would otherwise cross the newline, such as `kill-line`,
 are remapped to operate only within the query marker range.
 
-Rendered file headings show the modified date and display title, and carry
-dedicated text properties for navigation.  File paths stay out of the visible
-result list and are exposed through `help-echo` for standard hover help.
-`neft-mode` also uses a buffer-local `post-command-hook` to show the file path
-in the echo area when point moves over a result, so path visibility does not
-depend on global idle help settings.  File-result spacing is controlled by the
-Emacs UI; `neft-compact-result-spacing` omits the blank line between file
-results without changing snippets within a file.
+Rendered file headings show the modified date, display title, and tags, and
+carry dedicated text properties for navigation.  File paths stay out of the
+visible result list and are exposed through `help-echo` for standard hover
+help.  `neft-mode` also uses a buffer-local `post-command-hook` to show the
+file path in the echo area when point moves over a result, so path visibility
+does not depend on global idle help settings.  File-result spacing is
+controlled by the Emacs UI; `neft-compact-result-spacing` omits the blank line
+between file results without changing snippets within a file.
 `forward-paragraph` and `backward-paragraph`, commonly bound to `C-<down>` and
 `C-<up>`, are remapped to move by file result instead of by visual paragraph.
 
@@ -49,21 +49,27 @@ neft search --query QUERY --root DIR --extension EXT --case-sensitive BOOL --use
 
 Multiple `--root` and `--extension` flags are accepted.  When no extension is
 specified, the CLI searches `org` files.  JSON results include file path,
-display title, modified time, total matching line count, snippet lines, line
-numbers, and character ranges for highlighting.
+display title, tags, modified time, total matching line count, snippet lines,
+line numbers, and character ranges for highlighting.
 
 Display titles prefer the first non-empty `#+title:` metadata line by default.
 The metadata keyword is matched case-insensitively with leading whitespace
 allowed, and the value preserves case and punctuation after trimming surrounding
 whitespace.  When `--use-org-title=false` is specified, or no title metadata is
 present, titles are derived from filenames using the Denote-style suffix after
-`--` with hyphens rendered as spaces.
+`--` with hyphens rendered as spaces.  Tags prefer the first non-empty
+`#+filetags:` metadata line in `:tag1:tag2:` form.  When no filetags metadata is
+present, tags are derived from the Denote-style filename suffix after `__`.
 
-Queries are split on whitespace.  Every term must match the same line for that
-line to become a snippet.  Matching is case-insensitive by default and can be
-made case-sensitive through `--case-sensitive`; each term is expanded through
-gomigemo before matching, so romanized Japanese queries can match Japanese
-text.
+Queries are split on whitespace.  Tag-looking tokens in `:tag1:tag2:` form are
+parsed as file tag filters and match case-insensitively.  Remaining text terms
+must match the same line for that line to become a snippet.  Text matching is
+case-insensitive by default and can be made case-sensitive through
+`--case-sensitive`; each text term is expanded through gomigemo before matching,
+so romanized Japanese queries can match Japanese text.  Text and tag filters
+are combined with AND.  A backslash escapes tag syntax for text searches, so
+`\:tag:` searches for literal `:tag:` and `\\:tag:` searches for literal
+`\:tag:`.
 
 ## Result Density
 

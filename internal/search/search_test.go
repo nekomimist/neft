@@ -3,6 +3,7 @@ package search
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -27,8 +28,11 @@ func TestRunSearchesRecursiveOrgFilesWithMigemoAndANDTerms(t *testing.T) {
 	if len(result.Files) != 1 {
 		t.Fatalf("files = %d, want 1: %#v", len(result.Files), result.Files)
 	}
-	if result.Files[0].Title != "alpha note__tag" {
+	if result.Files[0].Title != "alpha note" {
 		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+	if !reflect.DeepEqual(result.Files[0].Tags, []string{"tag"}) {
+		t.Fatalf("tags = %#v", result.Files[0].Tags)
 	}
 	if len(result.Files[0].Snippets) != 1 {
 		t.Fatalf("snippets = %d, want 1", len(result.Files[0].Snippets))
@@ -57,6 +61,158 @@ func TestRunPrefersOrgTitleMetadata(t *testing.T) {
 		t.Fatalf("files = %d, want 1", len(result.Files))
 	}
 	if result.Files[0].Title != "Mixed CASE: A+B!" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+	if !reflect.DeepEqual(result.Files[0].Tags, []string{"tag"}) {
+		t.Fatalf("tags = %#v", result.Files[0].Tags)
+	}
+}
+
+func TestRunPrefersOrgFileTagsOverFilenameTags(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__filename.org"), "#+filetags: :Org:Tag:\nneedle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if !reflect.DeepEqual(result.Files[0].Tags, []string{"Org", "Tag"}) {
+		t.Fatalf("tags = %#v", result.Files[0].Tags)
+	}
+}
+
+func TestRunFallsBackToFilenameTagsWhenOrgFileTagsMissing(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__one_two.org"), "needle\n")
+
+	result, err := Run(Options{
+		Query:     "needle",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+	if !reflect.DeepEqual(result.Files[0].Tags, []string{"one", "two"}) {
+		t.Fatalf("tags = %#v", result.Files[0].Tags)
+	}
+}
+
+func TestRunTagQueryFiltersByFileTags(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__one_two.org"), "needle\n")
+	writeFile(t, filepath.Join(root, "20260102T000000--beta-note__one.org"), "needle\n")
+	writeFile(t, filepath.Join(root, "20260103T000000--gamma-note__two.org"), "needle\n")
+
+	result, err := Run(Options{
+		Query:     ":one:two:",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1: %#v", len(result.Files), result.Files)
+	}
+	if result.Files[0].Title != "alpha note" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+	if len(result.Files[0].Snippets) != 0 || result.Files[0].MatchCount != 0 {
+		t.Fatalf("tag-only result should have no snippets or matches: %#v", result.Files[0])
+	}
+}
+
+func TestRunMixedTextAndTagQueryRequiresBoth(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__tag.org"), "needle\n")
+	writeFile(t, filepath.Join(root, "20260102T000000--beta-note__tag.org"), "other\n")
+	writeFile(t, filepath.Join(root, "20260103T000000--gamma-note__other.org"), "needle\n")
+
+	result, err := Run(Options{
+		Query:     "needle :tag:",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1: %#v", len(result.Files), result.Files)
+	}
+	if result.Files[0].Title != "alpha note" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+	if result.Files[0].MatchCount != 1 {
+		t.Fatalf("match count = %d, want 1", result.Files[0].MatchCount)
+	}
+}
+
+func TestRunTagQueryMatchesCaseInsensitively(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note__Work.org"), "needle\n")
+
+	result, err := Run(Options{
+		Query:     ":work:",
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1", len(result.Files))
+	}
+}
+
+func TestRunEscapedTagTokenSearchesLiteralText(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), "literal :tag:\n")
+	writeFile(t, filepath.Join(root, "20260102T000000--beta-note__tag.org"), "other\n")
+
+	result, err := Run(Options{
+		Query:     `\:tag:`,
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1: %#v", len(result.Files), result.Files)
+	}
+	if result.Files[0].Title != "alpha note" {
+		t.Fatalf("title = %q", result.Files[0].Title)
+	}
+}
+
+func TestRunEscapedBackslashSearchesLiteralBackslashTag(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "20260101T000000--alpha-note.org"), `literal \:tag:`+"\n")
+	writeFile(t, filepath.Join(root, "20260102T000000--beta-note.org"), "literal :tag:\n")
+
+	result, err := Run(Options{
+		Query:     `\\:tag:`,
+		Roots:     []string{root},
+		Recursive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Files) != 1 {
+		t.Fatalf("files = %d, want 1: %#v", len(result.Files), result.Files)
+	}
+	if result.Files[0].Title != "alpha note" {
 		t.Fatalf("title = %q", result.Files[0].Title)
 	}
 }

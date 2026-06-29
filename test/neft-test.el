@@ -256,6 +256,45 @@
                      "/tmp/a.org"))
       (should (get-text-property heading-start 'neft-file-heading)))))
 
+(ert-deftest neft-render-results-shows-tags-after-title ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (tags . ("work" "memo"))
+                  (modified . "2026-01-02T03:04:05Z")
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (goto-char (point-min))
+    (should (search-forward "2026-01-02 alpha work memo" nil t))
+    (goto-char (point-min))
+    (should (search-forward "work" nil t))
+    (let ((tag-start (match-beginning 0)))
+      (should (equal (get-text-property tag-start 'face)
+                     'neft-tag-face))
+      (should (equal (get-text-property tag-start 'neft-path)
+                     "/tmp/a.org"))
+      (should (get-text-property tag-start 'neft-file-heading))
+      (should (equal (get-text-property tag-start 'help-echo)
+                     "/tmp/a.org")))))
+
+(ert-deftest neft-render-results-omits-tag-spacing-without-tags ()
+  (with-temp-buffer
+    (neft-mode)
+    (setq neft--query "")
+    (neft--render-results
+     '((query . "")
+       (files . (((path . "/tmp/a.org")
+                  (title . "alpha")
+                  (tags . nil)
+                  (match_count . 0)
+                  (snippets . nil))))))
+    (should (string-match-p "\\`Search\\[i\\]: \n\nalpha\n" (buffer-string)))
+    (should-not (string-match-p "alpha " (buffer-string)))))
+
 (ert-deftest neft-echoes-file-path-at-result-point ()
   (with-temp-buffer
     (neft-mode)
